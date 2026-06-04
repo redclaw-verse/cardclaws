@@ -15,7 +15,16 @@ const config: ExpoConfig = {
   android: {
     package: "com.cardclaws.app",
   },
-  plugins: ["expo-router"],
+  plugins: [
+    "expo-router",
+    [
+      "expo-image-picker",
+      {
+        photosPermission: "CardClaws uses your photos to set your card image.",
+        cameraPermission: "CardClaws uses the camera to capture your card image.",
+      },
+    ],
+  ],
   experiments: {
     typedRoutes: true,
   },

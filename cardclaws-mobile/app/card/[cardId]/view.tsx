@@ -41,7 +41,7 @@ export default function CardViewScreen() {
         </View>
       ) : (
         <>
-          <CardViewer card={data.definition} />
+          <CardViewer card={data.definition} fullScreen />
           <ShareSheet
             cardId={cardId}
             handle={data.handle}

@@ -19,6 +19,8 @@ interface Props {
   side: CardSide;
   width: number;
   height: number;
+  /** Corner radius; 0 for full-bleed full-screen cards. */
+  borderRadius?: number;
   /** URL encoded by any `qr` layer on this side (the card's profile URL). */
   profileUrl?: string;
 }
@@ -35,6 +37,16 @@ function backgroundStyle(bg: BackgroundConfig): { backgroundColor: string } {
 
 function assetUri(r2Key: string): string {
   return `${API_BASE}/assets/${r2Key}`;
+}
+
+/// Resolve an image background to a displayable URI. `value` carries a direct
+/// URI (local file:// or content:// for the demo, or a full URL); otherwise the
+/// r2Key resolves to the asset endpoint.
+function backgroundImageUri(bg: BackgroundConfig): string | null {
+  if (bg.type !== "image") return null;
+  if (bg.value) return bg.value;
+  if (bg.r2Key) return assetUri(bg.r2Key);
+  return null;
 }
 
 function LayerView({
@@ -137,10 +149,14 @@ function LayerView({
   }
 }
 
-export function CardFace({ side, width, height, profileUrl }: Props) {
+export function CardFace({ side, width, height, borderRadius = 24, profileUrl }: Props) {
   const ordered = [...side.layers].sort((a, b) => a.zIndex - b.zIndex);
+  const bgImage = backgroundImageUri(side.background);
   return (
-    <View style={[styles.face, { width, height }, backgroundStyle(side.background)]}>
+    <View style={[styles.face, { width, height, borderRadius }, backgroundStyle(side.background)]}>
+      {bgImage && (
+        <Image source={{ uri: bgImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      )}
       {ordered.map((layer) => (
         <LayerView
           key={layer.id}
@@ -156,7 +172,6 @@ export function CardFace({ side, width, height, profileUrl }: Props) {
 
 const styles = StyleSheet.create({
   face: {
-    borderRadius: 24,
     overflow: "hidden",
   },
   contactLine: {
