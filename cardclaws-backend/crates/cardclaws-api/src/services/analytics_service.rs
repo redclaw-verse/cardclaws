@@ -1,7 +1,7 @@
 //! Analytics ingestion + summary (PRD §18). IPs are hashed with a per-day
 //! rotating salt before storage — never persisted in plaintext (§18.3).
 
-use cardclaws_db::models::analytics::AnalyticsSummary;
+use cardclaws_db::models::analytics::{AnalyticsSummary, FeedEvent};
 use cardclaws_db::queries::analytics;
 use cardclaws_types::AppError;
 use sha2::{Digest, Sha256};
@@ -34,6 +34,7 @@ pub async fn ingest_client_event(
     state: &AppState,
     card_id: Uuid,
     event_type: &str,
+    share_token: Option<&str>,
     ip: Option<&str>,
     user_agent: Option<&str>,
 ) -> Result<(), AppError> {
@@ -51,15 +52,17 @@ pub async fn ingest_client_event(
     )
     .await?;
 
-    record(state, card_id, event_type, ip, user_agent).await
+    record(state, card_id, event_type, share_token, ip, user_agent).await
 }
 
-/// Record any event type internally (used for server-originated `profile_visit`).
-/// Errors are swallowed by callers that treat analytics as best-effort.
+/// Record any event type internally (used for server-originated events like
+/// `profile_visit` and share-link resolutions). Errors are swallowed by callers
+/// that treat analytics as best-effort.
 pub async fn record(
     state: &AppState,
     card_id: Uuid,
     event_type: &str,
+    share_token: Option<&str>,
     ip: Option<&str>,
     user_agent: Option<&str>,
 ) -> Result<(), AppError> {
@@ -70,6 +73,7 @@ pub async fn record(
         analytics::NewEvent {
             card_id,
             event_type,
+            share_token,
             ip_hash: ip_hash.as_deref(),
             user_agent,
         },
@@ -86,6 +90,16 @@ pub async fn summary(
 ) -> Result<AnalyticsSummary, AppError> {
     card_service::get_owned(state, card_id, user_id).await?;
     analytics::summary(&state.db, card_id).await.map_db()
+}
+
+/// Owner-only chronological event feed (capped).
+pub async fn feed(
+    state: &AppState,
+    card_id: Uuid,
+    user_id: Uuid,
+) -> Result<Vec<FeedEvent>, AppError> {
+    card_service::get_owned(state, card_id, user_id).await?;
+    analytics::feed(&state.db, card_id, 100).await.map_db()
 }
 
 /// SHA-256 of `date:secret:ip`. The date component rotates the salt daily so a

@@ -3,7 +3,7 @@
 use axum::extract::{Path, State};
 use axum::http::HeaderMap;
 use axum::Json;
-use cardclaws_db::models::analytics::AnalyticsSummary;
+use cardclaws_db::models::analytics::{AnalyticsSummary, FeedEvent};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -17,6 +17,8 @@ use crate::state::AppState;
 pub struct IngestRequest {
     pub card_id: Uuid,
     pub event_type: String,
+    #[serde(default)]
+    pub share_token: Option<String>,
 }
 
 /// Public client-side event ingest (PRD §18.1 secondary path).
@@ -31,6 +33,7 @@ pub async fn ingest_event(
         &state,
         req.card_id,
         &req.event_type,
+        req.share_token.as_deref(),
         ip.as_deref(),
         ua.as_deref(),
     )
@@ -46,6 +49,17 @@ pub async fn summary(
 ) -> ApiResult<Json<AnalyticsSummary>> {
     Ok(Json(
         analytics_service::summary(&state, id, user.user_id).await?,
+    ))
+}
+
+/// Owner-only chronological event feed.
+pub async fn feed(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Vec<FeedEvent>>> {
+    Ok(Json(
+        analytics_service::feed(&state, id, user.user_id).await?,
     ))
 }
 

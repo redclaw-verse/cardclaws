@@ -136,6 +136,7 @@ pub async fn get_card_by_handle(
         &state,
         profile.card.id,
         "profile_visit",
+        None,
         ip.as_deref(),
         ua.as_deref(),
     )

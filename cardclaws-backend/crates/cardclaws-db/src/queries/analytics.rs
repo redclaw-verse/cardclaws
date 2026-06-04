@@ -5,23 +5,26 @@
 
 use uuid::Uuid;
 
-use crate::models::analytics::AnalyticsSummary;
+use crate::models::analytics::{AnalyticsSummary, FeedEvent};
 use crate::Db;
 
 pub struct NewEvent<'a> {
     pub card_id: Uuid,
     pub event_type: &'a str,
+    /// Correlates the event to the share link that produced it (PRD §6.5.2).
+    pub share_token: Option<&'a str>,
     pub ip_hash: Option<&'a str>,
     pub user_agent: Option<&'a str>,
 }
 
 pub async fn insert_event(db: &Db, ev: NewEvent<'_>) -> Result<(), sqlx::Error> {
     sqlx::query(
-        r#"INSERT INTO analytics_events (card_id, event_type, ip_hash, user_agent)
-           VALUES ($1, $2, $3, $4)"#,
+        r#"INSERT INTO analytics_events (card_id, event_type, share_token, ip_hash, user_agent)
+           VALUES ($1, $2, $3, $4, $5)"#,
     )
     .bind(ev.card_id)
     .bind(ev.event_type)
+    .bind(ev.share_token)
     .bind(ev.ip_hash)
     .bind(ev.user_agent)
     .execute(db)
@@ -46,5 +49,20 @@ pub async fn summary(db: &Db, card_id: Uuid) -> Result<AnalyticsSummary, sqlx::E
     )
     .bind(card_id)
     .fetch_one(db)
+    .await
+}
+
+/// Most recent events for a card, newest first (PRD §6.7.2).
+pub async fn feed(db: &Db, card_id: Uuid, limit: i64) -> Result<Vec<FeedEvent>, sqlx::Error> {
+    sqlx::query_as(
+        r#"SELECT id, event_type, share_token, country, city, occurred_at
+           FROM analytics_events
+           WHERE card_id = $1
+           ORDER BY occurred_at DESC, id DESC
+           LIMIT $2"#,
+    )
+    .bind(card_id)
+    .bind(limit)
+    .fetch_all(db)
     .await
 }

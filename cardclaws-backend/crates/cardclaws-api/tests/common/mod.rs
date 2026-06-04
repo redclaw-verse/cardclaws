@@ -207,6 +207,22 @@ impl TestApp {
         (status, content_type, bytes)
     }
 
+    /// GET a path without following redirects; returns (status, Location header).
+    pub async fn get_redirect(&self, path: &str) -> (StatusCode, Option<String>) {
+        let req = Request::builder()
+            .method("GET")
+            .uri(path)
+            .body(Body::empty())
+            .unwrap();
+        let resp = self.router.clone().oneshot(req).await.unwrap();
+        let location = resp
+            .headers()
+            .get("location")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+        (resp.status(), location)
+    }
+
     /// Register a fresh user and return its access token.
     pub async fn register_and_token(&self) -> String {
         let (email, handle) = unique_identity();

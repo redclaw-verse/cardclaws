@@ -4,4 +4,5 @@
 pub mod analytics;
 pub mod card;
 pub mod session;
+pub mod share_link;
 pub mod user;

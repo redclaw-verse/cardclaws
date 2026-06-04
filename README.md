@@ -82,7 +82,16 @@ bash scripts/policy-grep.sh   # no stub/placeholder markers (PRD §15.4)
   Skia/Reanimated card viewer (3D flip + entry + ambient drift). Logic core
   unit-tested (22 tests: handle validation, k-means palette, vCard, undo/redo
   store, QR); full app type-checks. Component/E2E runs need a simulator.
-- **B4** Apple Wallet + analytics (backend) — done. `cardclaws-wallet` crate
+- **B4** Apple Wallet + analytics (backend) — done.
+
+### Phase 2 (in progress)
+
+- **Share system (backend)** — done. `POST /v1/cards/{id}/share` mints an opaque
+  12-char base62 token; `GET /v1/s/{token}` records the modality-attributed
+  event (qr→qr_scan, nfc→nfc_tap, …) and 302-redirects to the profile;
+  `GET /v1/cards/{id}/share-links` lists them. Events carry the `share_token`
+  correlation, and `GET /v1/cards/{id}/analytics/feed` returns the chronological
+  feed. `cardclaws-wallet` crate
   (pass.json builder, SHA-1 manifest, strip render, zip packager, PKCS#7
   OpenSSL signer behind the `apple-signing` feature) wired at
   `POST /v1/cards/{id}/wallet/apple`. Analytics ingest + summary
