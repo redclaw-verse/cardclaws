@@ -98,8 +98,27 @@ bash scripts/policy-grep.sh   # no stub/placeholder markers (PRD §15.4)
   lookup is behind a `GeoResolver` trait — real MaxMind under the `geoip`
   feature, no-op otherwise; the raw IP is resolved then discarded (only the
   hash + coarse country/city are stored).
-- **Remaining:** mobile advanced layers + share/QR/NFC UI + analytics dashboard
-  screen (P2-3), then Android + Google Wallet.
+- **Mobile share + analytics + layers** — done (type-checked, logic unit-tested).
+  `ShapeLayer` type + layer reordering in `cardStore`; QR rendering (`QRCodeView`
+  from the on-device matrix); `CardFace` renders shape + qr layers; share/
+  analytics API clients; `ShareSheet` (QR overlay + OS share sheet); per-card
+  analytics dashboard (summary + top countries + activity feed).
+- **Google Wallet (backend + mobile link)** — done. `cardclaws-wallet::google`
+  builds the inline GenericObject and an RS256-signed `savetowallet` JWT
+  (`Rs256Signer` via `jsonwebtoken`, fake signer for tests); wired at
+  `POST /v1/cards/{id}/wallet/google` → `{ saveUrl }`. Mobile share sheet has an
+  "Add to Google Wallet" action that opens the save URL.
+- **Profile depth + contact form** — done + verified live. Web profile renders
+  About (bio) + Links sections + a contact form; `POST /v1/profile/{handle}/contact`
+  validates, rate-limits, records a `contact_form_submission`, and emails the
+  owner (Resend). End-to-end: mobile edits profile → web renders it → form
+  submits to the owner.
+- **Builder depth (mobile)** — done. `LayerPropertySheet` (per-type edit:
+  text/color/fill/opacity + delete), `LayerOrderPanel` (reorder front↔back,
+  select), `ProfileEditor` (bio + up to 12 links), shape-layer creation — all
+  undoable via `cardStore` (profile/link actions unit-tested).
+- **Remaining:** NFC tap + native Add-to-Apple-Wallet (need native modules + a
+  dev build); Android build; portfolio/testimonials (Pro).
 
 Backend tests: **67 passing** (unit + integration). Run with a live Postgres
 (`TEST_DATABASE_URL`) to exercise the integration suite.

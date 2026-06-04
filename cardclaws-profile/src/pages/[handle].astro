@@ -16,6 +16,9 @@ if (!profile) {
 const contact = extractContact(profile.definition);
 const bgHex = faceBackground(profile.definition);
 const name = profile.ownerDisplayName;
+const profileData = profile.definition.profile ?? {};
+const bio = profileData.bio?.trim();
+const links = (profileData.links ?? []).filter((l) => l.url.trim().length > 0);
 const vcard = buildVcard(name, contact);
 const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
   contact.company ? ` at ${contact.company}` : ""
@@ -41,6 +44,39 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
         bgHex={bgHex}
         contact={contact}
       />
+
+      {bio && (
+        <section class="block">
+          <h2>About</h2>
+          <p class="bio">{bio}</p>
+        </section>
+      )}
+
+      {links.length > 0 && (
+        <section class="block">
+          <h2>Links</h2>
+          <ul class="links">
+            {links.map((l) => (
+              <li>
+                <a href={l.url} target="_blank" rel="noopener noreferrer">
+                  {l.label || l.url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section class="block">
+        <h2>Get in touch</h2>
+        <form id="contact-form" class="contact-form">
+          <input name="name" placeholder="Your name" required />
+          <input name="email" type="email" placeholder="Your email" required />
+          <textarea name="message" placeholder="Message" rows="4" maxlength="1000" required></textarea>
+          <button type="submit">Send</button>
+          <p id="contact-status" class="status"></p>
+        </form>
+      </section>
     </main>
 
     <nav class="actions" aria-label="Contact actions">
@@ -59,10 +95,76 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
       }
       main {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
         min-height: 100vh;
-        padding: 48px 0 120px;
+        padding: 48px 20px 120px;
+        gap: 32px;
+      }
+      .block {
+        width: 100%;
+        max-width: 420px;
+        color: #f5f5f7;
+      }
+      .block h2 {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #9a9aa0;
+        margin: 0 0 12px;
+      }
+      .bio {
+        margin: 0;
+        line-height: 1.5;
+        color: #d8d8dc;
+      }
+      .links {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .links a {
+        display: block;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #15151a;
+        color: #f5f5f7;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .contact-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .contact-form input,
+      .contact-form textarea {
+        background: #15151a;
+        border: 1px solid #222228;
+        border-radius: 12px;
+        padding: 14px;
+        color: #f5f5f7;
+        font-size: 16px;
+        font-family: inherit;
+      }
+      .contact-form button {
+        background: #ff3b30;
+        color: #fff;
+        border: none;
+        border-radius: 14px;
+        padding: 14px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .status {
+        margin: 0;
+        font-size: 14px;
+        color: #9a9aa0;
+        min-height: 18px;
       }
       .actions {
         position: fixed;
@@ -112,6 +214,35 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ card_id: cardId, event_type: "contact_save" }),
         }).catch(() => {});
+      });
+    </script>
+
+    <script define:vars={{ handle, apiBase: publicApiBase() }}>
+      const form = document.getElementById("contact-form");
+      const status = document.getElementById("contact-status");
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        status.textContent = "Sending…";
+        try {
+          const res = await fetch(`${apiBase}/v1/profile/${handle}/contact`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              name: data.get("name"),
+              email: data.get("email"),
+              message: data.get("message"),
+            }),
+          });
+          if (res.ok) {
+            form.reset();
+            status.textContent = "Thanks — your message was sent.";
+          } else {
+            status.textContent = "Please check your details and try again.";
+          }
+        } catch {
+          status.textContent = "Something went wrong. Try again later.";
+        }
       });
     </script>
   </body>

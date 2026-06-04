@@ -16,7 +16,22 @@ export interface PublicProfile {
 export interface CardDefinition {
   face?: CardSide;
   back?: CardSide;
+  profile?: ProfileData;
   [key: string]: unknown;
+}
+
+export interface ProfileLink {
+  id: string;
+  type: string;
+  label: string;
+  url: string;
+  iconSlug: string;
+}
+
+export interface ProfileData {
+  bio?: string;
+  links?: ProfileLink[];
+  contactFormEnabled?: boolean;
 }
 
 export interface CardSide {
