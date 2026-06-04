@@ -57,6 +57,17 @@ pub async fn update_tier(db: &Db, id: Uuid, tier: &str) -> Result<u64, sqlx::Err
     Ok(result.rows_affected())
 }
 
+/// Hard-delete a user. FK cascades remove their cards (and the cards' share
+/// links, analytics events, wallet registrations), sessions, team memberships,
+/// and any team they own (PRD §18.3).
+pub async fn delete(db: &Db, id: Uuid) -> Result<u64, sqlx::Error> {
+    let r = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(id)
+        .execute(db)
+        .await?;
+    Ok(r.rows_affected())
+}
+
 pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<User>, sqlx::Error> {
     let row: Option<UserRow> = sqlx::query_as(
         r#"SELECT id, email, handle, display_name, tier, password_hash,

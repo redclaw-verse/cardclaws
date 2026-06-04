@@ -1,3 +1,4 @@
+pub mod account;
 pub mod analytics;
 pub mod assets;
 pub mod auth;

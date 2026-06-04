@@ -193,6 +193,192 @@ async fn non_member_cannot_view_or_admin_team() {
 }
 
 #[tokio::test]
+async fn team_aggregate_analytics_covers_members_cards() {
+    let app = require_app!();
+    let (token, _, team_id) = team_owner(&app, None).await;
+
+    // The owner publishes a card and gets a couple of profile visits.
+    let handle = common::unique_handle();
+    let def = json!({
+        "face": { "layers": [], "background": { "type": "solid", "value": "#101014" } },
+        "back": { "layers": [] }
+    });
+    let (_, card) = app
+        .request(
+            "POST",
+            "/v1/cards",
+            Some(&token),
+            Some(json!({ "handle": handle, "definition": def })),
+        )
+        .await;
+    let card_id = card["id"].as_str().unwrap();
+    app.request(
+        "POST",
+        &format!("/v1/cards/{card_id}/publish"),
+        Some(&token),
+        None,
+    )
+    .await;
+    app.request("GET", &format!("/v1/cards/handle/{handle}"), None, None)
+        .await;
+    app.request("GET", &format!("/v1/cards/handle/{handle}"), None, None)
+        .await;
+
+    // JSON aggregate (admin/owner only) includes that card with 2 visits.
+    let (status, rows) = app
+        .request(
+            "GET",
+            &format!("/v1/teams/{team_id}/analytics?sort=visits"),
+            Some(&token),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let arr = rows.as_array().unwrap();
+    let row = arr
+        .iter()
+        .find(|r| r["handle"] == handle)
+        .expect("card present");
+    assert_eq!(row["visits"], 2);
+
+    // CSV export.
+    let (csv_status, content_type, body) = app
+        .request_raw(
+            "GET",
+            &format!("/v1/teams/{team_id}/analytics.csv"),
+            Some(&token),
+        )
+        .await;
+    assert_eq!(csv_status, StatusCode::OK);
+    assert!(content_type.starts_with("text/csv"));
+    assert!(body.starts_with("handle,owner,visits,qr_scans,contact_saves,link_clicks"));
+    assert!(body.contains(&handle));
+}
+
+#[tokio::test]
+async fn team_analytics_requires_admin() {
+    let app = require_app!();
+    let (owner_token, _, team_id) = team_owner(&app, None).await;
+    let (member_token, member_id) = app.register_and_user().await;
+    let member_email = app_email(&app, &member_id).await;
+    app.request(
+        "POST",
+        &format!("/v1/teams/{team_id}/members"),
+        Some(&owner_token),
+        Some(json!({ "email": member_email, "role": "member" })),
+    )
+    .await;
+
+    // A plain member cannot view team analytics.
+    let (status, _) = app
+        .request(
+            "GET",
+            &format!("/v1/teams/{team_id}/analytics"),
+            Some(&member_token),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn admin_manages_templates_members_can_list() {
+    let app = require_app!();
+    let (owner_token, _, team_id) = team_owner(&app, None).await;
+
+    // Add a plain member.
+    let (member_token, member_id) = app.register_and_user().await;
+    let member_email = app_email(&app, &member_id).await;
+    app.request(
+        "POST",
+        &format!("/v1/teams/{team_id}/members"),
+        Some(&owner_token),
+        Some(json!({ "email": member_email, "role": "member" })),
+    )
+    .await;
+
+    let template = json!({
+        "name": "Corporate",
+        "definition": {
+            "face": { "layers": [], "background": { "type": "solid", "value": "#1b1b2f" } },
+            "back": { "layers": [] }
+        }
+    });
+
+    // Admin/owner creates a template.
+    let (create_status, created) = app
+        .request(
+            "POST",
+            &format!("/v1/teams/{team_id}/templates"),
+            Some(&owner_token),
+            Some(template.clone()),
+        )
+        .await;
+    assert_eq!(create_status, StatusCode::OK);
+    let template_id = created["id"].as_str().unwrap().to_string();
+    assert_eq!(created["name"], "Corporate");
+
+    // A plain member can list it.
+    let (list_status, list) = app
+        .request(
+            "GET",
+            &format!("/v1/teams/{team_id}/templates"),
+            Some(&member_token),
+            None,
+        )
+        .await;
+    assert_eq!(list_status, StatusCode::OK);
+    assert_eq!(list.as_array().unwrap().len(), 1);
+
+    // A plain member cannot create one.
+    let (forbidden, _) = app
+        .request(
+            "POST",
+            &format!("/v1/teams/{team_id}/templates"),
+            Some(&member_token),
+            Some(template),
+        )
+        .await;
+    assert_eq!(forbidden, StatusCode::FORBIDDEN);
+
+    // Admin deletes it.
+    let (del_status, _) = app
+        .request(
+            "DELETE",
+            &format!("/v1/teams/{team_id}/templates/{template_id}"),
+            Some(&owner_token),
+            None,
+        )
+        .await;
+    assert_eq!(del_status, StatusCode::OK);
+    let (_, after) = app
+        .request(
+            "GET",
+            &format!("/v1/teams/{team_id}/templates"),
+            Some(&owner_token),
+            None,
+        )
+        .await;
+    assert_eq!(after.as_array().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn template_definition_must_be_object() {
+    let app = require_app!();
+    let (token, _, team_id) = team_owner(&app, None).await;
+    let (status, body) = app
+        .request(
+            "POST",
+            &format!("/v1/teams/{team_id}/templates"),
+            Some(&token),
+            Some(json!({ "name": "Bad", "definition": "not-an-object" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "validation");
+}
+
+#[tokio::test]
 async fn plain_member_cannot_add_members() {
     let app = require_app!();
     let (owner_token, _, team_id) = team_owner(&app, None).await;

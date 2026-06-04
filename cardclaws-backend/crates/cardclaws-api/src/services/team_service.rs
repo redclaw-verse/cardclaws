@@ -1,7 +1,8 @@
 //! Team management (PRD §21 Phase 4): create teams, manage members with roles,
 //! and enforce the seat cap. Only Team/Enterprise tiers may own a team.
 
-use cardclaws_db::models::team::{MemberRow, TeamRow};
+use cardclaws_db::models::team::{MemberRow, TeamCardStats, TeamRow, TeamTemplateRow};
+use cardclaws_db::queries::teams::TeamStatsSort;
 use cardclaws_db::queries::{teams, users};
 use cardclaws_types::AppError;
 use uuid::Uuid;
@@ -137,6 +138,67 @@ pub async fn remove_member(
         .map_db()?;
     if removed == 0 {
         return Err(AppError::NotFound("member".into()));
+    }
+    Ok(())
+}
+
+/// Per-card aggregate analytics across the team (admin/owner only, PRD §6.7.3).
+pub async fn aggregate_analytics(
+    state: &AppState,
+    team_id: Uuid,
+    actor_id: Uuid,
+    sort: TeamStatsSort,
+) -> Result<Vec<TeamCardStats>, AppError> {
+    require_admin(state, team_id, actor_id).await?;
+    teams::team_card_stats(&state.db, team_id, sort)
+        .await
+        .map_db()
+}
+
+// ---- Template library (PRD §6.1.4) ----------------------------------------
+
+pub async fn create_template(
+    state: &AppState,
+    team_id: Uuid,
+    actor_id: Uuid,
+    name: &str,
+    definition: &serde_json::Value,
+) -> Result<TeamTemplateRow, AppError> {
+    require_admin(state, team_id, actor_id).await?;
+    if name.trim().is_empty() {
+        return Err(AppError::Validation("template name is required".into()));
+    }
+    if !definition.is_object() {
+        return Err(AppError::Validation(
+            "definition must be a JSON object".into(),
+        ));
+    }
+    teams::insert_template(&state.db, team_id, name, definition, actor_id)
+        .await
+        .map_db()
+}
+
+pub async fn list_templates(
+    state: &AppState,
+    team_id: Uuid,
+    actor_id: Uuid,
+) -> Result<Vec<TeamTemplateRow>, AppError> {
+    require_member(state, team_id, actor_id).await?;
+    teams::list_templates(&state.db, team_id).await.map_db()
+}
+
+pub async fn delete_template(
+    state: &AppState,
+    team_id: Uuid,
+    actor_id: Uuid,
+    template_id: Uuid,
+) -> Result<(), AppError> {
+    require_admin(state, team_id, actor_id).await?;
+    let removed = teams::delete_template(&state.db, team_id, template_id)
+        .await
+        .map_db()?;
+    if removed == 0 {
+        return Err(AppError::NotFound("template".into()));
     }
     Ok(())
 }

@@ -84,6 +84,14 @@ bash scripts/policy-grep.sh   # no stub/placeholder markers (PRD §15.4)
   store, QR); full app type-checks. Component/E2E runs need a simulator.
 - **B4** Apple Wallet + analytics (backend) — done.
 
+### Cross-cutting
+
+- **GDPR export + account deletion (backend)** — done. `GET /v1/account/export`
+  returns a full JSON dump (user, cards, share links, analytics, wallet
+  registrations, memberships — never the password hash, assembled via Postgres
+  `json_agg`). `DELETE /v1/account` hard-deletes the user; FK cascades remove
+  all owned data (PRD §18.3).
+
 ### Phase 4 (in progress)
 
 - **Teams data layer (backend)** — done. `teams` + `team_memberships`
@@ -92,6 +100,14 @@ bash scripts/policy-grep.sh   # no stub/placeholder markers (PRD §15.4)
   `DELETE …/members/{userId}`. Add-by-email (existing accounts), seat-cap
   enforcement (402), role-based authorization (admin to mutate; non-members get
   404 so teams aren't enumerable); owner can't be removed.
+- **Team-aggregate analytics (backend)** — done. `GET /v1/teams/{id}/analytics`
+  (admin/owner only): per-card visits/qr/saves/clicks across all members,
+  sortable via `?sort=` (whitelisted columns). `…/analytics.csv` exports the
+  same as RFC-4180 CSV.
+- **Central template management (backend)** — done. `team_templates`
+  (migration 0004); admins create/delete shared templates
+  (`POST|DELETE /v1/teams/{id}/templates[/{templateId}]`), members list them
+  (`GET`). Definition must be a JSON object.
 
 ### Phase 3
 
