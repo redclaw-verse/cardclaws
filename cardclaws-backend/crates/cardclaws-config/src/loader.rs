@@ -64,6 +64,10 @@ pub struct WalletConfig {
     pub apple_pass_type_id: String,
     pub apple_team_id: String,
     pub organization_name: String,
+    /// Google Wallet issuer id (the numeric issuer account).
+    pub google_issuer_id: String,
+    /// Service account email used as the save-JWT `iss`.
+    pub google_service_account_email: String,
 }
 
 /// Cloudflare R2 (S3-compatible) object storage config. Defaults are dev
@@ -112,6 +116,13 @@ impl Config {
                     .await,
                 apple_team_id: optional(src, "APPLE_TEAM_ID", "TEAMID0000").await,
                 organization_name: optional(src, "ORGANIZATION_NAME", "CardClaws").await,
+                google_issuer_id: optional(src, "GOOGLE_ISSUER_ID", "3388000000000000000").await,
+                google_service_account_email: optional(
+                    src,
+                    "GOOGLE_SA_EMAIL",
+                    "wallet@cardclaws.iam.gserviceaccount.com",
+                )
+                .await,
             },
         })
     }

@@ -4,7 +4,7 @@
 use axum::routing::{get, post};
 use axum::Router;
 
-use crate::handlers::{analytics, assets, auth, cards, health, share, wallet};
+use crate::handlers::{analytics, assets, auth, cards, health, profile, share, wallet};
 use crate::middleware::cors;
 use crate::state::AppState;
 
@@ -32,6 +32,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/cards/:id/duplicate", post(cards::duplicate_card))
         .route("/cards/:id/export/vcf", get(cards::export_vcf))
         .route("/cards/:id/wallet/apple", post(wallet::apple_pass))
+        .route("/cards/:id/wallet/google", post(wallet::google_pass))
         .route("/cards/handle/:handle", get(cards::get_card_by_handle))
         .route("/cards/:id/analytics", get(analytics::summary))
         .route("/cards/:id/analytics/feed", get(analytics::feed))
@@ -39,6 +40,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/cards/:id/share", post(share::create_share))
         .route("/cards/:id/share-links", get(share::list_shares))
         .route("/s/:token", get(share::resolve_share))
+        .route("/profile/:handle/contact", post(profile::submit_contact))
         .route("/analytics/event", post(analytics::ingest_event))
         .route("/assets/upload", post(assets::presign_upload))
         .route("/assets/*key", axum::routing::delete(assets::delete_asset));

@@ -8,6 +8,7 @@ use cardclaws_config::WalletConfig;
 use cardclaws_db::Db;
 use cardclaws_wallet::apple::signer::PassSigner;
 use cardclaws_wallet::apple::BrandAssets;
+use cardclaws_wallet::google::jwt_signer::GoogleWalletSigner;
 
 use crate::assets::ObjectStore;
 use crate::cache::Cache;
@@ -34,5 +35,6 @@ pub struct AppState {
     /// Apple Wallet pass identity + signer + bundled brand assets.
     pub wallet: WalletConfig,
     pub pass_signer: Arc<dyn PassSigner>,
+    pub google_signer: Arc<dyn GoogleWalletSigner>,
     pub brand: Arc<BrandAssets>,
 }

@@ -346,8 +346,10 @@ dependencies = [
 name = "cardclaws-wallet"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "cardclaws-types",
  "image",
+ "jsonwebtoken",
  "openssl",
  "serde",
  "serde_json",

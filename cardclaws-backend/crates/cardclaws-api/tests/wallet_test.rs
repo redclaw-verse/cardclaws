@@ -73,6 +73,59 @@ async fn apple_pass_endpoint_returns_valid_pkpass() {
 }
 
 #[tokio::test]
+async fn google_pass_endpoint_returns_save_url_with_object() {
+    use base64::Engine;
+
+    let app = require_app!();
+    let token = app.register_and_token().await;
+
+    let handle = unique_handle();
+    let definition = json!({
+        "face": { "layers": [], "background": { "type": "solid", "value": "#202028" } },
+        "back": { "layers": [
+            { "type": "contact", "fields": { "title": "Founder", "company": "RedClaw" } }
+        ]}
+    });
+    let (_, created) = app
+        .request(
+            "POST",
+            "/v1/cards",
+            Some(&token),
+            Some(json!({"handle": handle, "definition": definition})),
+        )
+        .await;
+    let id = created["id"].as_str().unwrap();
+
+    let (status, body) = app
+        .request(
+            "POST",
+            &format!("/v1/cards/{id}/wallet/google"),
+            Some(&token),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let save_url = body["saveUrl"].as_str().unwrap();
+    assert!(save_url.starts_with("https://pay.google.com/gp/v/save/"));
+
+    // Decode the JWT payload and confirm it carries our object + QR barcode.
+    let jwt = save_url.trim_start_matches("https://pay.google.com/gp/v/save/");
+    let parts: Vec<&str> = jwt.split('.').collect();
+    assert_eq!(parts.len(), 3);
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(parts[1])
+        .unwrap();
+    let claims: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+    assert_eq!(claims["typ"], "savetowallet");
+    let obj = &claims["payload"]["genericObjects"][0];
+    assert_eq!(
+        obj["barcode"]["value"],
+        format!("https://cardclaws.test/{handle}")
+    );
+    assert_eq!(obj["header"]["defaultValue"]["value"], "Card Owner");
+}
+
+#[tokio::test]
 async fn apple_pass_requires_auth() {
     let app = require_app!();
     let (status, _, _) = app

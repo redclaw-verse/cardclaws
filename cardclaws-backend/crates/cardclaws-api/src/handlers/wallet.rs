@@ -4,6 +4,8 @@
 use axum::extract::{Path, State};
 use axum::http::header;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::error::ApiResult;
@@ -28,4 +30,14 @@ pub async fn apple_pass(
         bytes,
     )
         .into_response())
+}
+
+/// Returns the "Add to Google Wallet" save URL (PRD §13.3).
+pub async fn google_pass(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Value>> {
+    let save_url = wallet_service::google_save_link(&state, id, user.user_id).await?;
+    Ok(Json(json!({ "saveUrl": save_url })))
 }

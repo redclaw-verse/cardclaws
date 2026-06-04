@@ -9,6 +9,7 @@
 
 pub mod apple;
 pub mod error;
+pub mod google;
 pub mod strip_renderer;
 
 pub use error::WalletError;

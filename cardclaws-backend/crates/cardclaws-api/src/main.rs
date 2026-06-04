@@ -13,6 +13,7 @@ use cardclaws_auth::JwtKeys;
 use cardclaws_config::{Config, EnvSecretSource, SecretSource};
 use cardclaws_wallet::apple::signer::PassSigner;
 use cardclaws_wallet::apple::BrandAssets;
+use cardclaws_wallet::google::jwt_signer::{FakeGoogleSigner, GoogleWalletSigner, Rs256Signer};
 use cardclaws_wallet::strip_renderer;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -47,6 +48,7 @@ async fn main() -> Result<(), BoxError> {
     let cache = RedisCache::connect(&config.redis_url).await?;
     let assets = R2Store::new(&config.r2)?;
     let pass_signer = build_pass_signer(&secrets).await?;
+    let google_signer = build_google_signer(&secrets).await;
     let geo = build_geo_resolver(&secrets).await;
 
     // Brand glyphs bundled into every pass. Solid-fill placeholders for now;
@@ -69,6 +71,7 @@ async fn main() -> Result<(), BoxError> {
         ip_hash_secret: config.ip_hash_secret.clone(),
         wallet: config.wallet.clone(),
         pass_signer,
+        google_signer,
         brand: Arc::new(brand),
     };
 
@@ -95,6 +98,23 @@ fn spawn_rollup_task(db: cardclaws_db::Db) {
             }
         }
     });
+}
+
+/// Build the Google Wallet signer. Uses the service account RSA key from
+/// `GOOGLE_SA_KEY` (PEM) when present; otherwise a fake signer (dev) that
+/// produces structurally-valid but unverifiable save links, with a warning.
+async fn build_google_signer(secrets: &dyn SecretSource) -> Arc<dyn GoogleWalletSigner> {
+    if let Some(pem) = secrets.get("GOOGLE_SA_KEY").await {
+        match Rs256Signer::from_pem(pem.as_bytes()) {
+            Ok(s) => {
+                tracing::info!("google wallet signing enabled (RS256)");
+                return Arc::new(s);
+            }
+            Err(e) => tracing::warn!(error = %e, "invalid GOOGLE_SA_KEY; google wallet disabled"),
+        }
+    }
+    tracing::warn!("GOOGLE_SA_KEY not set: google wallet save links are unsigned (dev only)");
+    Arc::new(FakeGoogleSigner)
 }
 
 /// Build the geo resolver. With `geoip` enabled and `MAXMIND_DB_PATH` set, uses

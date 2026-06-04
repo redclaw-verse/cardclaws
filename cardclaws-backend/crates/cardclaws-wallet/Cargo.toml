@@ -23,6 +23,10 @@ sha1 = { workspace = true }
 zip = { workspace = true }
 image = { workspace = true }
 thiserror = { workspace = true }
+# Google Wallet "save" JWT (RS256). jsonwebtoken is pure-Rust, so this is always
+# compiled (unlike the openssl-backed Apple signer).
+jsonwebtoken = { workspace = true }
+base64 = { workspace = true }
 openssl = { version = "0.10", features = ["vendored"], optional = true }
 
 [dev-dependencies]

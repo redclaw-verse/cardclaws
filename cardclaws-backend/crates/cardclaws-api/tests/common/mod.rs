@@ -28,6 +28,7 @@ use cardclaws_auth::JwtKeys;
 use cardclaws_config::WalletConfig;
 use cardclaws_wallet::apple::signer::FakePassSigner;
 use cardclaws_wallet::apple::BrandAssets;
+use cardclaws_wallet::google::jwt_signer::FakeGoogleSigner;
 use cardclaws_wallet::strip_renderer;
 
 /// Apple provider that never returns a usable key — fine for tests that don't
@@ -92,8 +93,11 @@ pub async fn try_setup() -> Option<TestApp> {
             apple_pass_type_id: "pass.com.cardclaws.test".into(),
             apple_team_id: "TEST123".into(),
             organization_name: "CardClaws".into(),
+            google_issuer_id: "3388000000000000000".into(),
+            google_service_account_email: "wallet@cardclaws.test.iam.gserviceaccount.com".into(),
         },
         pass_signer: Arc::new(FakePassSigner),
+        google_signer: Arc::new(FakeGoogleSigner),
         brand: Arc::new(BrandAssets {
             icon_png: strip_renderer::render_solid(58, 58, "#ff3b30").unwrap(),
             logo_png: strip_renderer::render_solid(160, 50, "#ffffff").unwrap(),

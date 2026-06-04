@@ -5,6 +5,7 @@
 use cardclaws_db::queries::users;
 use cardclaws_types::AppError;
 use cardclaws_wallet::apple::{build_pkpass, PassInput};
+use cardclaws_wallet::google::{build_save_link, GoogleInput};
 use uuid::Uuid;
 
 use crate::error::SqlxResultExt;
@@ -39,6 +40,35 @@ pub async fn apple_pkpass(
     };
 
     build_pkpass(&input, &state.brand, state.pass_signer.as_ref())
+        .map_err(|e| AppError::Internal(e.to_string()))
+}
+
+/// Build the "Add to Google Wallet" save URL for a card (PRD §10.3).
+pub async fn google_save_link(
+    state: &AppState,
+    card_id: Uuid,
+    user_id: Uuid,
+) -> Result<String, AppError> {
+    let card = card_service::get_owned(state, card_id, user_id).await?;
+    let owner = users::find_by_id(&state.db, card.owner_id)
+        .await
+        .map_db()?
+        .ok_or_else(|| AppError::Internal("card owner missing".into()))?;
+
+    let contact = vcard::extract_contact(&card.definition);
+    let issuer = &state.wallet.google_issuer_id;
+    let input = GoogleInput {
+        issuer_email: state.wallet.google_service_account_email.clone(),
+        class_id: format!("{issuer}.cardclaws_generic"),
+        object_id: format!("{issuer}.{}", card.id),
+        holder_name: owner.display_name,
+        title: contact.title,
+        company: contact.company,
+        profile_url: format!("{}/{}", state.profile_base_url, card.handle),
+        background_hex: background_hex(&card.definition),
+    };
+
+    build_save_link(&input, state.google_signer.as_ref())
         .map_err(|e| AppError::Internal(e.to_string()))
 }
 
