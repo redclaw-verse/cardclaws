@@ -99,6 +99,63 @@ describe("cardStore undo/redo", () => {
     expect(undos).toBe(MAX_HISTORY);
   });
 
+  it("reorderLayer swaps adjacent z-indexes and is reversible", () => {
+    const a = { ...textLayer("A"), zIndex: 1 };
+    const b = { ...textLayer("B"), zIndex: 2 };
+    useCardStore.getState().addLayer("face", a);
+    useCardStore.getState().addLayer("face", b);
+
+    // Move A up: A and B swap z-indexes → A above B.
+    useCardStore.getState().reorderLayer("face", a.id, "up");
+    const za = () =>
+      useCardStore.getState().card!.face.layers.find((l) => l.id === a.id)!.zIndex;
+    const zb = () =>
+      useCardStore.getState().card!.face.layers.find((l) => l.id === b.id)!.zIndex;
+    expect(za()).toBe(2);
+    expect(zb()).toBe(1);
+
+    useCardStore.getState().undo();
+    expect(za()).toBe(1);
+    expect(zb()).toBe(2);
+  });
+
+  it("reorderLayer past an edge is a no-op", () => {
+    const a = { ...textLayer("A"), zIndex: 1 };
+    useCardStore.getState().addLayer("face", a);
+    const before = useCardStore.getState().past.length;
+    useCardStore.getState().reorderLayer("face", a.id, "down"); // already bottom
+    // The mutation still snapshots, but ordering is unchanged.
+    expect(useCardStore.getState().card!.face.layers[0].zIndex).toBe(1);
+    expect(useCardStore.getState().past.length).toBe(before + 1);
+  });
+
+  it("edits profile bio and links with undo support", () => {
+    const s = useCardStore.getState();
+    s.setBio("Founder & CEO");
+    expect(useCardStore.getState().card?.profile?.bio).toBe("Founder & CEO");
+
+    useCardStore.getState().addLink({
+      id: "l1",
+      type: "linkedin",
+      label: "LinkedIn",
+      url: "https://linkedin.com/in/omar",
+      iconSlug: "linkedin",
+    });
+    expect(useCardStore.getState().card?.profile?.links).toHaveLength(1);
+
+    useCardStore.getState().updateLink("l1", { label: "My LinkedIn" });
+    expect(useCardStore.getState().card?.profile?.links[0].label).toBe("My LinkedIn");
+
+    useCardStore.getState().removeLink("l1");
+    expect(useCardStore.getState().card?.profile?.links).toHaveLength(0);
+
+    // Undo the removal, then the label edit.
+    useCardStore.getState().undo();
+    expect(useCardStore.getState().card?.profile?.links).toHaveLength(1);
+    useCardStore.getState().undo();
+    expect(useCardStore.getState().card?.profile?.links[0].label).toBe("LinkedIn");
+  });
+
   it("undo/redo are no-ops at the ends", () => {
     expect(() => useCardStore.getState().undo()).not.toThrow();
     expect(() => useCardStore.getState().redo()).not.toThrow();

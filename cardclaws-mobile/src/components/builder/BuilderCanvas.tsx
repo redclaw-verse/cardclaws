@@ -6,8 +6,11 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { CardFace } from "../card/CardFace";
 import { ColorPaletteEditor } from "./ColorPaletteEditor";
+import { LayerOrderPanel } from "./LayerOrderPanel";
+import { LayerPropertySheet } from "./LayerPropertySheet";
+import { ProfileEditor } from "./ProfileEditor";
 import { Side, newLayerId, useCardStore } from "../../stores/cardStore";
-import { TextLayer } from "../../types/card";
+import { ShapeLayer, TextLayer } from "../../types/card";
 
 export function BuilderCanvas({ side = "face" as Side }: { side?: Side }) {
   const { width, height } = useWindowDimensions();
@@ -20,6 +23,9 @@ export function BuilderCanvas({ side = "face" as Side }: { side?: Side }) {
   const canRedo = useCardStore((s) => s.canRedo());
 
   const [draftText, setDraftText] = useState("");
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
 
   if (!card) return null;
   const cardWidth = Math.min(width * 0.9, 360);
@@ -49,6 +55,24 @@ export function BuilderCanvas({ side = "face" as Side }: { side?: Side }) {
     setDraftText("");
   };
 
+  const addShape = () => {
+    const layer: ShapeLayer = {
+      id: newLayerId(),
+      type: "shape",
+      x: 0.1,
+      y: 0.5,
+      width: 0.35,
+      height: 0.2,
+      opacity: 1,
+      zIndex: card[side].layers.length + 1,
+      shape: "rectangle",
+      fill: "#ff3b30",
+      strokeWidth: 0,
+      cornerRadius: 12,
+    };
+    addLayer(side, layer);
+  };
+
   return (
     <View style={styles.root}>
       <View style={styles.canvasArea}>
@@ -74,6 +98,21 @@ export function BuilderCanvas({ side = "face" as Side }: { side?: Side }) {
         <ToolButton label="↶" onPress={undo} disabled={!canUndo} />
         <ToolButton label="↷" onPress={redo} disabled={!canRedo} />
       </View>
+
+      <View style={styles.secondaryBar}>
+        <ToolButton label="Shape" onPress={addShape} />
+        <ToolButton label="Layers" onPress={() => setOrderOpen(true)} />
+        <ToolButton label="Profile" onPress={() => setProfileOpen(true)} />
+      </View>
+
+      <LayerOrderPanel
+        side={side}
+        visible={orderOpen}
+        onClose={() => setOrderOpen(false)}
+        onSelect={setSelectedLayerId}
+      />
+      <LayerPropertySheet side={side} layerId={selectedLayerId} onClose={() => setSelectedLayerId(null)} />
+      <ProfileEditor visible={profileOpen} onClose={() => setProfileOpen(false)} />
     </View>
   );
 }
@@ -106,6 +145,12 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 16,
     alignItems: "center",
+  },
+  secondaryBar: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   input: {
     flex: 1,

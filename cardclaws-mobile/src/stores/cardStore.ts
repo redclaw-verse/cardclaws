@@ -6,7 +6,7 @@
 // Zustand store so it is usable both in React and in headless unit tests.
 
 import { create } from "zustand";
-import { BackgroundConfig, CardDefinition, Layer } from "../types/card";
+import { BackgroundConfig, CardDefinition, Layer, ProfileData, ProfileLink } from "../types/card";
 
 export const MAX_HISTORY = 50;
 
@@ -21,7 +21,13 @@ interface CardState {
   addLayer: (side: Side, layer: Layer) => void;
   updateLayer: (side: Side, layerId: string, patch: Partial<Layer>) => void;
   removeLayer: (side: Side, layerId: string) => void;
+  reorderLayer: (side: Side, layerId: string, direction: "up" | "down") => void;
   setBackground: (side: Side, background: BackgroundConfig) => void;
+
+  setBio: (bio: string) => void;
+  addLink: (link: ProfileLink) => void;
+  updateLink: (linkId: string, patch: Partial<ProfileLink>) => void;
+  removeLink: (linkId: string) => void;
 
   undo: () => void;
   redo: () => void;
@@ -58,6 +64,16 @@ export const useCardStore = create<CardState>((set, get) => {
     return card;
   };
 
+  const emptyProfile = (): ProfileData => ({ bio: "", links: [] });
+
+  const editProfile = (
+    card: CardDefinition,
+    fn: (profile: ProfileData) => ProfileData,
+  ): CardDefinition => {
+    card.profile = fn(card.profile ?? emptyProfile());
+    return card;
+  };
+
   return {
     card: null,
     past: [],
@@ -80,11 +96,44 @@ export const useCardStore = create<CardState>((set, get) => {
         editSide(card, side, (layers) => layers.filter((l) => l.id !== layerId)),
       ),
 
+    reorderLayer: (side, layerId, direction) =>
+      mutate((card) =>
+        editSide(card, side, (layers) => {
+          const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+          const i = sorted.findIndex((l) => l.id === layerId);
+          const j = direction === "up" ? i + 1 : i - 1;
+          if (i === -1 || j < 0 || j >= sorted.length) return layers;
+          // Swap the z-indexes of the two adjacent layers.
+          const zi = sorted[i].zIndex;
+          sorted[i] = { ...sorted[i], zIndex: sorted[j].zIndex };
+          sorted[j] = { ...sorted[j], zIndex: zi };
+          return sorted;
+        }),
+      ),
+
     setBackground: (side, background) =>
       mutate((card) => {
         card[side] = { ...card[side], background };
         return card;
       }),
+
+    setBio: (bio) => mutate((card) => editProfile(card, (p) => ({ ...p, bio }))),
+
+    addLink: (link) =>
+      mutate((card) => editProfile(card, (p) => ({ ...p, links: [...p.links, link] }))),
+
+    updateLink: (linkId, patch) =>
+      mutate((card) =>
+        editProfile(card, (p) => ({
+          ...p,
+          links: p.links.map((l) => (l.id === linkId ? { ...l, ...patch } : l)),
+        })),
+      ),
+
+    removeLink: (linkId) =>
+      mutate((card) =>
+        editProfile(card, (p) => ({ ...p, links: p.links.filter((l) => l.id !== linkId) })),
+      ),
 
     undo: () => {
       const { card, past, future } = get();

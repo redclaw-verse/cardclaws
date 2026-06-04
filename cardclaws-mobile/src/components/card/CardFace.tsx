@@ -9,14 +9,18 @@ import {
   ContactLayer,
   Layer,
   LogoLayer,
+  ShapeLayer,
   TextLayer,
 } from "../../types/card";
 import { API_BASE } from "../../api/client";
+import { QRCodeView } from "./QRCodeView";
 
 interface Props {
   side: CardSide;
   width: number;
   height: number;
+  /** URL encoded by any `qr` layer on this side (the card's profile URL). */
+  profileUrl?: string;
 }
 
 function backgroundStyle(bg: BackgroundConfig): { backgroundColor: string } {
@@ -33,7 +37,17 @@ function assetUri(r2Key: string): string {
   return `${API_BASE}/assets/${r2Key}`;
 }
 
-function LayerView({ layer, width, height }: { layer: Layer; width: number; height: number }) {
+function LayerView({
+  layer,
+  width,
+  height,
+  profileUrl,
+}: {
+  layer: Layer;
+  width: number;
+  height: number;
+  profileUrl?: string;
+}) {
   const frame = {
     position: "absolute" as const,
     left: layer.x * width,
@@ -89,17 +103,52 @@ function LayerView({ layer, width, height }: { layer: Layer; width: number; heig
         </View>
       );
     }
+    case "shape": {
+      const s = layer as ShapeLayer;
+      const radius =
+        s.shape === "circle"
+          ? Math.min(frame.width, frame.height)
+          : s.shape === "line"
+            ? 0
+            : s.cornerRadius;
+      return (
+        <View
+          style={[
+            frame,
+            {
+              backgroundColor: s.fill,
+              borderColor: s.stroke,
+              borderWidth: s.stroke ? s.strokeWidth : 0,
+              borderRadius: radius,
+              height: s.shape === "line" ? Math.max(s.strokeWidth, 1) : frame.height,
+            },
+          ]}
+        />
+      );
+    }
+    case "qr":
+      return (
+        <View style={frame}>
+          <QRCodeView value={profileUrl ?? ""} size={Math.min(frame.width, frame.height)} />
+        </View>
+      );
     default:
       return <View style={frame} />;
   }
 }
 
-export function CardFace({ side, width, height }: Props) {
+export function CardFace({ side, width, height, profileUrl }: Props) {
   const ordered = [...side.layers].sort((a, b) => a.zIndex - b.zIndex);
   return (
     <View style={[styles.face, { width, height }, backgroundStyle(side.background)]}>
       {ordered.map((layer) => (
-        <LayerView key={layer.id} layer={layer} width={width} height={height} />
+        <LayerView
+          key={layer.id}
+          layer={layer}
+          width={width}
+          height={height}
+          profileUrl={profileUrl}
+        />
       ))}
     </View>
   );

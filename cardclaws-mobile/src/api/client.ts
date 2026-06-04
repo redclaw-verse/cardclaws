@@ -4,6 +4,8 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../stores/authStore";
 
 export const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? "http://localhost:8080";
+/** Public profile base, e.g. `https://cardclaws.com` — used to build QR/profile URLs. */
+export const PROFILE_BASE = process.env.EXPO_PUBLIC_PROFILE_BASE ?? "https://cardclaws.com";
 
 export const api = axios.create({ baseURL: API_BASE });
 

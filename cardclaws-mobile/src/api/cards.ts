@@ -42,3 +42,9 @@ export async function publishCard(id: string): Promise<CardRecord> {
 export function appleWalletUrl(id: string): string {
   return `${api.defaults.baseURL}/v1/cards/${id}/wallet/apple`;
 }
+
+/** Fetch the "Add to Google Wallet" save URL for a card. */
+export async function googleWalletSaveUrl(id: string): Promise<string> {
+  const res = await api.post<{ saveUrl: string }>(`/v1/cards/${id}/wallet/google`);
+  return res.data.saveUrl;
+}

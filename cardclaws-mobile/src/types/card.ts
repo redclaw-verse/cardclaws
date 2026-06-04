@@ -66,7 +66,17 @@ export interface ContactLayer extends BaseLayer {
   fields: ContactFields;
 }
 
-export type Layer = TextLayer | LogoLayer | ContactLayer | BaseLayer;
+export interface ShapeLayer extends BaseLayer {
+  type: "shape";
+  shape: "rectangle" | "circle" | "line";
+  fill?: string;
+  stroke?: string;
+  strokeWidth: number;
+  cornerRadius: number;
+}
+
+/** A `qr` layer carries only geometry; its content is the card's profile URL. */
+export type Layer = TextLayer | LogoLayer | ContactLayer | ShapeLayer | BaseLayer;
 
 export interface GradientStop {
   color: string;
@@ -105,6 +115,21 @@ export interface CardSettings {
   hapticEnabled: boolean;
 }
 
+export interface ProfileLink {
+  id: string;
+  type: string;
+  label: string;
+  url: string;
+  iconSlug: string;
+}
+
+export interface ProfileData {
+  bio: string;
+  avatarR2Key?: string | null;
+  links: ProfileLink[];
+  contactFormEnabled?: boolean;
+}
+
 export interface CardDefinition {
   id: string;
   ownerId: string;
@@ -114,6 +139,7 @@ export interface CardDefinition {
   back: CardSide;
   palette: ColorPalette;
   settings: CardSettings;
+  profile?: ProfileData;
 }
 
 export const DEFAULT_SETTINGS: CardSettings = {

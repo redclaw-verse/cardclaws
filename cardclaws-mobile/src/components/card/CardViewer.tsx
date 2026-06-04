@@ -13,6 +13,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
+import { PROFILE_BASE } from "../../api/client";
 import { CardDefinition } from "../../types/card";
 import { CardFace } from "./CardFace";
 import { CardFlip } from "./CardFlip";
@@ -21,6 +22,7 @@ export function CardViewer({ card }: { card: CardDefinition }) {
   const { width, height } = useWindowDimensions();
   const cardWidth = Math.min(width * 0.92, 380);
   const cardHeight = Math.min(height * 0.72, cardWidth * 1.5);
+  const profileUrl = `${PROFILE_BASE}/${card.handle}`;
 
   const entry = useSharedValue(0);
   const float = useSharedValue(0);
@@ -58,8 +60,12 @@ export function CardViewer({ card }: { card: CardDefinition }) {
           durationMs={card.settings.flipDurationMs}
           hapticEnabled={card.settings.hapticEnabled}
           gesture={card.settings.flipGesture}
-          front={<CardFace side={card.face} width={cardWidth} height={cardHeight} />}
-          back={<CardFace side={card.back} width={cardWidth} height={cardHeight} />}
+          front={
+            <CardFace side={card.face} width={cardWidth} height={cardHeight} profileUrl={profileUrl} />
+          }
+          back={
+            <CardFace side={card.back} width={cardWidth} height={cardHeight} profileUrl={profileUrl} />
+          }
         />
       </Animated.View>
     </View>
