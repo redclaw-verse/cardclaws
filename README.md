@@ -84,7 +84,19 @@ bash scripts/policy-grep.sh   # no stub/placeholder markers (PRD §15.4)
   store, QR); full app type-checks. Component/E2E runs need a simulator.
 - **B4** Apple Wallet + analytics (backend) — done.
 
-### Phase 2 (in progress)
+### Phase 3 (in progress)
+
+- **Tier-gate enforcement (backend)** — done. `Tier` capability model
+  (pro-layers, geo-analytics, custom-domain, retention). Pro-only layer types
+  (video/particle/animatedGradient) rejected on card create/replace/patch for
+  Free; geo analytics gated to Pro+. Tier is read from the DB (authoritative),
+  so a billing-webhook upgrade applies immediately. Returns 402 `tier_limit`.
+- **Billing webhook → tier (backend)** — done. `POST /v1/webhooks/revenuecat`
+  (shared-secret auth in the `Authorization` header, constant-time compare) maps
+  RevenueCat lifecycle events to `users.tier` (purchase→pro/team/enterprise,
+  cancellation/expiration→free). Unknown users are a 2xx no-op.
+
+### Phase 2
 
 - **Share system (backend)** — done. `POST /v1/cards/{id}/share` mints an opaque
   12-char base62 token; `GET /v1/s/{token}` records the modality-attributed

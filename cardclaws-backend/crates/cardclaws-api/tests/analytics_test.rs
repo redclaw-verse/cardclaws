@@ -106,7 +106,8 @@ async fn ingest_rejects_server_only_event_type() {
 #[tokio::test]
 async fn geo_breakdown_groups_by_country() {
     let app = require_app!();
-    let token = app.register_and_token().await;
+    let (token, user_id) = app.register_and_user().await;
+    app.set_tier(&user_id, "pro").await; // geo analytics are Pro-gated
     let (id, _) = create_and_publish(&app, &token).await;
 
     // Two client events with a forwarded IP → FakeGeo resolves both to US.

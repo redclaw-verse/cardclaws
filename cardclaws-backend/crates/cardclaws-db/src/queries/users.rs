@@ -46,6 +46,17 @@ pub async fn find_by_email(db: &Db, email: &str) -> Result<Option<User>, sqlx::E
     Ok(row.map(UserRow::into_domain))
 }
 
+/// Update a user's tier (billing webhook). Returns the number of rows affected
+/// (0 = no such user).
+pub async fn update_tier(db: &Db, id: Uuid, tier: &str) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query("UPDATE users SET tier = $2, updated_at = now() WHERE id = $1")
+        .bind(id)
+        .bind(tier)
+        .execute(db)
+        .await?;
+    Ok(result.rows_affected())
+}
+
 pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<User>, sqlx::Error> {
     let row: Option<UserRow> = sqlx::query_as(
         r#"SELECT id, email, handle, display_name, tier, password_hash,

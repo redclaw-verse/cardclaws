@@ -32,6 +32,8 @@ pub struct AppState {
     pub profile_base_url: String,
     /// Seed for the daily-rotating IP hash salt (PRD §18.3).
     pub ip_hash_secret: String,
+    /// Shared secret expected in the billing webhook `Authorization` header.
+    pub billing_webhook_secret: String,
     /// Apple Wallet pass identity + signer + bundled brand assets.
     pub wallet: WalletConfig,
     pub pass_signer: Arc<dyn PassSigner>,

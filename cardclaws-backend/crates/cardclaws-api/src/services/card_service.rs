@@ -33,6 +33,7 @@ pub async fn create(
 ) -> Result<CardRow, AppError> {
     crate::validation::validate_handle(handle)?;
     require_object(definition)?;
+    enforce_layer_tier(definition, current_tier(state, user_id).await?)?;
 
     cards::insert(
         &state.db,
@@ -54,6 +55,7 @@ pub async fn replace(
 ) -> Result<CardRow, AppError> {
     get_owned(state, id, user_id).await?;
     require_object(definition)?;
+    enforce_layer_tier(definition, current_tier(state, user_id).await?)?;
     cards::update_definition(&state.db, id, definition)
         .await
         .map_db()
@@ -76,6 +78,7 @@ pub async fn patch(
     for (k, v) in patch {
         base.insert(k.clone(), v.clone());
     }
+    enforce_layer_tier(&merged, current_tier(state, user_id).await?)?;
     cards::update_definition(&state.db, id, &merged)
         .await
         .map_db()
@@ -174,6 +177,42 @@ pub async fn export_vcf(state: &AppState, id: Uuid, user_id: Uuid) -> Result<Str
 }
 
 // ---- Helpers --------------------------------------------------------------
+
+/// The caller's current tier from the DB (authoritative — reflects webhook
+/// upgrades immediately, unlike the tier embedded in the access token).
+async fn current_tier(state: &AppState, user_id: Uuid) -> Result<Tier, AppError> {
+    let user = users::find_by_id(&state.db, user_id)
+        .await
+        .map_db()?
+        .ok_or(AppError::Unauthorized)?;
+    Ok(user.tier)
+}
+
+/// Pro-and-above layer types (PRD §6.1.1). Free cards may not use them.
+const PRO_LAYER_TYPES: &[&str] = &["video", "particle", "animatedGradient"];
+
+/// Reject Pro-only layer types for tiers that don't allow them.
+fn enforce_layer_tier(definition: &serde_json::Value, tier: Tier) -> Result<(), AppError> {
+    if tier.allows_pro_layers() {
+        return Ok(());
+    }
+    for side in ["face", "back"] {
+        let layers = definition
+            .get(side)
+            .and_then(|s| s.get("layers"))
+            .and_then(|l| l.as_array());
+        for layer in layers.into_iter().flatten() {
+            if let Some(t) = layer.get("type").and_then(|t| t.as_str()) {
+                if PRO_LAYER_TYPES.contains(&t) {
+                    return Err(AppError::TierLimit(format!(
+                        "{t} layers require a Pro plan"
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
 fn require_object(definition: &serde_json::Value) -> Result<(), AppError> {
     if definition.is_object() {

@@ -6,3 +6,4 @@ pub mod health;
 pub mod profile;
 pub mod share;
 pub mod wallet;
+pub mod webhooks;

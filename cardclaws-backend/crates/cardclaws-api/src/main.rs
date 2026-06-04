@@ -69,6 +69,7 @@ async fn main() -> Result<(), BoxError> {
         apple_audience,
         profile_base_url: config.profile_base_url.clone(),
         ip_hash_secret: config.ip_hash_secret.clone(),
+        billing_webhook_secret: config.billing_webhook_secret.clone(),
         wallet: config.wallet.clone(),
         pass_signer,
         google_signer,

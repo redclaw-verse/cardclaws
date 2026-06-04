@@ -26,6 +26,32 @@ impl Tier {
         }
     }
 
+    /// Pro-and-above unlock the animated layer types (PRD §6.1.1, §19.1):
+    /// video background, particle systems, animated (shader) gradients.
+    pub fn allows_pro_layers(self) -> bool {
+        !matches!(self, Tier::Free)
+    }
+
+    /// Geographic analytics are Pro-and-above (PRD §19.1).
+    pub fn allows_geo_analytics(self) -> bool {
+        !matches!(self, Tier::Free)
+    }
+
+    /// Custom domains are Pro-and-above (PRD §19.1).
+    pub fn allows_custom_domain(self) -> bool {
+        !matches!(self, Tier::Free)
+    }
+
+    /// Analytics retention window in days; `None` = unlimited (PRD §19.1).
+    pub fn analytics_retention_days(self) -> Option<i64> {
+        match self {
+            Tier::Free => Some(7),
+            Tier::Pro => Some(90),
+            Tier::Team => Some(365),
+            Tier::Enterprise => None,
+        }
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             Tier::Free => "free",
@@ -33,6 +59,28 @@ impl Tier {
             Tier::Team => "team",
             Tier::Enterprise => "enterprise",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Tier;
+
+    #[test]
+    fn capability_matrix() {
+        assert_eq!(Tier::Free.active_card_limit(), Some(1));
+        assert_eq!(Tier::Pro.active_card_limit(), Some(5));
+        assert_eq!(Tier::Team.active_card_limit(), None);
+
+        assert!(!Tier::Free.allows_pro_layers());
+        assert!(Tier::Pro.allows_pro_layers());
+
+        assert!(!Tier::Free.allows_geo_analytics());
+        assert!(Tier::Enterprise.allows_geo_analytics());
+
+        assert_eq!(Tier::Free.analytics_retention_days(), Some(7));
+        assert_eq!(Tier::Pro.analytics_retention_days(), Some(90));
+        assert_eq!(Tier::Enterprise.analytics_retention_days(), None);
     }
 }
 

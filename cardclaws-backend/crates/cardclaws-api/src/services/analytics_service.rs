@@ -2,7 +2,7 @@
 //! rotating salt before storage — never persisted in plaintext (§18.3).
 
 use cardclaws_db::models::analytics::{AnalyticsSummary, FeedEvent};
-use cardclaws_db::queries::analytics;
+use cardclaws_db::queries::{analytics, users};
 use cardclaws_types::AppError;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -96,6 +96,18 @@ pub async fn geo_breakdown(
     user_id: Uuid,
 ) -> Result<Vec<cardclaws_db::models::analytics::GeoCount>, AppError> {
     card_service::get_owned(state, card_id, user_id).await?;
+    // Geo analytics are Pro-and-above (PRD §19.1). Tier is read from the DB so a
+    // webhook upgrade applies immediately.
+    let tier = users::find_by_id(&state.db, user_id)
+        .await
+        .map_db()?
+        .ok_or(AppError::Unauthorized)?
+        .tier;
+    if !tier.allows_geo_analytics() {
+        return Err(AppError::TierLimit(
+            "geographic analytics require a Pro plan".into(),
+        ));
+    }
     analytics::geo_breakdown(&state.db, card_id).await.map_db()
 }
 

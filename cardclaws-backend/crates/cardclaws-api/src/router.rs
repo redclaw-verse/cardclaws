@@ -4,7 +4,7 @@
 use axum::routing::{get, post};
 use axum::Router;
 
-use crate::handlers::{analytics, assets, auth, cards, health, profile, share, wallet};
+use crate::handlers::{analytics, assets, auth, cards, health, profile, share, wallet, webhooks};
 use crate::middleware::cors;
 use crate::state::AppState;
 
@@ -41,6 +41,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/cards/:id/share-links", get(share::list_shares))
         .route("/s/:token", get(share::resolve_share))
         .route("/profile/:handle/contact", post(profile::submit_contact))
+        .route("/webhooks/revenuecat", post(webhooks::revenuecat))
         .route("/analytics/event", post(analytics::ingest_event))
         .route("/assets/upload", post(assets::presign_upload))
         .route("/assets/*key", axum::routing::delete(assets::delete_asset));

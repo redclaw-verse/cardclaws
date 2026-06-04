@@ -52,6 +52,8 @@ pub struct Config {
     pub profile_base_url: String,
     /// Per-day rotating salt seed used for hashing visitor IPs (PRD §18.3).
     pub ip_hash_secret: String,
+    /// Shared secret RevenueCat sends in the webhook `Authorization` header.
+    pub billing_webhook_secret: String,
     pub bind_addr: String,
     pub r2: R2Config,
     pub wallet: WalletConfig,
@@ -99,6 +101,7 @@ impl Config {
             jwt_secret: require(src, "JWT_SECRET").await?,
             profile_base_url: optional(src, "PROFILE_BASE_URL", "https://cardclaws.com").await,
             ip_hash_secret: require(src, "IP_HASH_SECRET").await?,
+            billing_webhook_secret: optional(src, "BILLING_WEBHOOK_SECRET", "").await,
             bind_addr: optional(src, "BIND_ADDR", "0.0.0.0:8080").await,
             r2: R2Config {
                 endpoint: optional(

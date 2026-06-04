@@ -89,6 +89,7 @@ pub async fn try_setup() -> Option<TestApp> {
         apple_audience: "com.cardclaws.test".into(),
         profile_base_url: "https://cardclaws.test".into(),
         ip_hash_secret: "test-ip-salt".into(),
+        billing_webhook_secret: "test-webhook-secret".into(),
         wallet: WalletConfig {
             apple_pass_type_id: "pass.com.cardclaws.test".into(),
             apple_team_id: "TEST123".into(),
@@ -281,6 +282,49 @@ impl TestApp {
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
         (resp.status(), location)
+    }
+
+    /// Register a fresh user; return its access token and user id.
+    pub async fn register_and_user(&self) -> (String, String) {
+        let (email, handle) = unique_identity();
+        let (status, body) = self
+            .post(
+                "/v1/auth/register",
+                serde_json::json!({
+                    "email": email,
+                    "password": "correct horse battery",
+                    "handle": handle,
+                    "display_name": "Tier User",
+                }),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "registration failed: {body}");
+        (
+            body["access_token"].as_str().unwrap().to_string(),
+            body["user"]["id"].as_str().unwrap().to_string(),
+        )
+    }
+
+    /// Read a user's current tier from the DB.
+    pub async fn get_tier(&self, user_id: &str) -> String {
+        let id = uuid::Uuid::parse_str(user_id).unwrap();
+        let (tier,): (String,) = sqlx::query_as("SELECT tier FROM users WHERE id = $1")
+            .bind(id)
+            .fetch_one(&self.db)
+            .await
+            .unwrap();
+        tier
+    }
+
+    /// Force a user's tier directly in the DB (simulates a billing webhook).
+    pub async fn set_tier(&self, user_id: &str, tier: &str) {
+        let id = uuid::Uuid::parse_str(user_id).unwrap();
+        sqlx::query("UPDATE users SET tier = $1 WHERE id = $2")
+            .bind(tier)
+            .bind(id)
+            .execute(&self.db)
+            .await
+            .unwrap();
     }
 
     /// Register a fresh user and return its access token.
