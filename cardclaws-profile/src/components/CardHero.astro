@@ -1,0 +1,122 @@
+---
+// A web recreation of the card with a click/tap flip (PRD §6.6.2 hero). CSS 3D
+// transform mirrors the mobile Reanimated flip; Framer Motion polish is a later
+// enhancement.
+import type { ContactInfo } from "../lib/contact";
+
+interface Props {
+  name: string;
+  title?: string;
+  company?: string;
+  bgHex: string;
+  contact: ContactInfo;
+}
+const { name, title, company, bgHex, contact } = Astro.props;
+
+// Choose readable text color from background luminance.
+const hex = bgHex.replace("#", "");
+const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2) || "10", 16));
+const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+const fg = luminance > 0.6 ? "#101014" : "#f5f5f7";
+---
+
+<div class="flip" id="card-flip" role="button" tabindex="0" aria-label="Flip card">
+  <div class="flip-inner">
+    <div class="face front" style={`background:${bgHex};color:${fg}`}>
+      <div class="name">{name}</div>
+      {title && <div class="title">{title}</div>}
+      {company && <div class="company">{company}</div>}
+      <div class="hint">tap to flip</div>
+    </div>
+    <div class="face back" style={`background:${bgHex};color:${fg}`}>
+      <ul class="contact">
+        {contact.title && <li>{contact.title}</li>}
+        {contact.company && <li>{contact.company}</li>}
+        {contact.email && <li>{contact.email}</li>}
+        {contact.phone && <li>{contact.phone}</li>}
+        {contact.website && <li>{contact.website}</li>}
+      </ul>
+      <div class="hint">tap to flip back</div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .flip {
+    perspective: 1200px;
+    width: min(92vw, 360px);
+    aspect-ratio: 360 / 540;
+    margin: 0 auto;
+    cursor: pointer;
+  }
+  .flip-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.45s cubic-bezier(0.645, 0.045, 0.355, 1);
+    transform-style: preserve-3d;
+  }
+  .flip.flipped .flip-inner {
+    transform: rotateY(180deg);
+  }
+  .face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: 24px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  }
+  .back {
+    transform: rotateY(180deg);
+    justify-content: center;
+  }
+  .name {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .title {
+    font-size: 18px;
+    opacity: 0.9;
+    margin-top: 4px;
+  }
+  .company {
+    font-size: 16px;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+  .contact {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 17px;
+  }
+  .hint {
+    position: absolute;
+    bottom: 14px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    opacity: 0.45;
+  }
+</style>
+
+<script>
+  const flip = document.getElementById("card-flip");
+  const toggle = () => flip?.classList.toggle("flipped");
+  flip?.addEventListener("click", toggle);
+  flip?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggle();
+    }
+  });
+</script>

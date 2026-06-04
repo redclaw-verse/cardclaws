@@ -1,0 +1,14 @@
+{
+  "comment": "Standalone TS config for the pure-logic Jest suites. Deliberately does NOT extend expo/tsconfig.base so the logic tests run without the full React Native toolchain installed.",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "types": ["jest"]
+  },
+  "include": ["__tests__/unit/**/*.ts"]
+}

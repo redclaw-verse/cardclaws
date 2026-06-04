@@ -1,0 +1,118 @@
+---
+// The public profile at cardclaws.com/[handle] (PRD §11). SSR-fetches the
+// active card, renders the hero + sticky contact-actions bar, and wires the
+// Save Contact (.vcf) download with a contact_save analytics ping.
+import CardHero from "../components/CardHero.astro";
+import { fetchProfile, publicApiBase } from "../lib/api";
+import { buildVcard, extractContact, faceBackground } from "../lib/contact";
+
+const { handle } = Astro.params;
+const profile = handle ? await fetchProfile(handle, Astro.request.headers) : null;
+
+if (!profile) {
+  return new Response("Profile not found", { status: 404 });
+}
+
+const contact = extractContact(profile.definition);
+const bgHex = faceBackground(profile.definition);
+const name = profile.ownerDisplayName;
+const vcard = buildVcard(name, contact);
+const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
+  contact.company ? ` at ${contact.company}` : ""
+}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{og}</title>
+    <meta property="og:title" content={og} />
+    <meta property="og:type" content="profile" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <main>
+      <CardHero
+        name={name}
+        title={contact.title}
+        company={contact.company}
+        bgHex={bgHex}
+        contact={contact}
+      />
+    </main>
+
+    <nav class="actions" aria-label="Contact actions">
+      <button id="save-contact" class="action">Save Contact</button>
+      {contact.phone && <a class="action" href={`tel:${contact.phone}`}>Call</a>}
+      {contact.email && <a class="action" href={`mailto:${contact.email}`}>Email</a>}
+    </nav>
+
+    <style>
+      :global(body) {
+        margin: 0;
+        min-height: 100vh;
+        background: #0a0a0c;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 48px 0 120px;
+      }
+      .actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        gap: 8px;
+        padding: 16px;
+        background: rgba(10, 10, 12, 0.85);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .action {
+        flex: 1;
+        text-align: center;
+        padding: 14px;
+        border-radius: 14px;
+        border: none;
+        font-size: 16px;
+        font-weight: 600;
+        color: #fff;
+        background: #ff3b30;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .action:not(#save-contact) {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    </style>
+
+    <script define:vars={{ vcard, cardId: profile.id, apiBase: publicApiBase() }}>
+      const btn = document.getElementById("save-contact");
+      btn?.addEventListener("click", () => {
+        const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "contact.vcf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        // Best-effort analytics; never block the download.
+        fetch(`${apiBase}/v1/analytics/event`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ card_id: cardId, event_type: "contact_save" }),
+        }).catch(() => {});
+      });
+    </script>
+  </body>
+</html>

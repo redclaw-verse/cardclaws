@@ -1,0 +1,30 @@
+# Local development dependencies: PostgreSQL 16 + Redis 7 (PRD §7.2 / §9.1).
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cardclaws
+      POSTGRES_PASSWORD: cardclaws
+      POSTGRES_DB: cardclaws
+    ports:
+      - "5544:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cardclaws"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6399:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

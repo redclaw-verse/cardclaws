@@ -1,0 +1,18 @@
+# Rust
+/cardclaws-backend/target/
+**/*.rs.bk
+
+# Node / Expo / Astro
+node_modules/
+.expo/
+dist/
+.astro/
+*.log
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store

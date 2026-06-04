@@ -1,0 +1,31 @@
+[package]
+name = "cardclaws-wallet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Real Apple PKCS#7 signing pulls in the (heavy) openssl dependency. Off by
+# default so the crate and its tests build fast against the fake signer; the
+# production binary enables it. The signing code is fully implemented either way.
+default = []
+apple-signing = ["dep:openssl"]
+
+[dependencies]
+cardclaws-types = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha1 = { workspace = true }
+zip = { workspace = true }
+image = { workspace = true }
+thiserror = { workspace = true }
+openssl = { version = "0.10", features = ["vendored"], optional = true }
+
+[dev-dependencies]
+zip = { workspace = true }
+serde_json = { workspace = true }
+sha1 = { workspace = true }

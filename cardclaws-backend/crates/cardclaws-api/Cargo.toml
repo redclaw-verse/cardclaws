@@ -1,0 +1,62 @@
+[package]
+name = "cardclaws-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Enable real Apple PKCS#7 pass signing in the binary (pulls in openssl via the
+# wallet crate). Without it the dev build uses a fake signer that produces
+# structurally-correct but unsigned passes — logged loudly at startup.
+default = []
+apple-signing = ["cardclaws-wallet/apple-signing"]
+
+[[bin]]
+name = "cardclaws-api"
+path = "src/main.rs"
+
+[dependencies]
+cardclaws-types = { workspace = true }
+cardclaws-config = { workspace = true }
+cardclaws-db = { workspace = true }
+cardclaws-auth = { workspace = true }
+cardclaws-wallet = { workspace = true }
+
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+redis = { workspace = true }
+reqwest = { workspace = true }
+rusty-s3 = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+base64 = { workspace = true }
+validator = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+cardclaws-auth = { workspace = true }
+cardclaws-wallet = { workspace = true }
+cardclaws-config = { workspace = true }
+tower = { workspace = true, features = ["util"] }
+http-body-util = "0.1"
+tokio = { workspace = true }
+axum = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true }
+async-trait = { workspace = true }
+zip = { workspace = true }

@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: LOC limit (PRD §14)
+        run: bash scripts/loc-lint.sh
+      - name: No stubs/placeholders (PRD §15.4)
+        run: bash scripts/policy-grep.sh
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cardclaws
+          POSTGRES_PASSWORD: cardclaws
+          POSTGRES_DB: cardclaws_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cardclaws"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      TEST_DATABASE_URL: postgres://cardclaws:cardclaws@localhost:5432/cardclaws_test
+    defaults:
+      run:
+        working-directory: cardclaws-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+
+  profile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cardclaws-profile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Type-check
+        run: npm run check
+      - name: Build
+        run: npm run build
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cardclaws-mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Type-check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test

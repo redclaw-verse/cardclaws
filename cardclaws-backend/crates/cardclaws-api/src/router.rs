@@ -1,0 +1,46 @@
+//! Route table (PRD §13). Only the auth surface and health are mounted in B1;
+//! card/wallet/profile/analytics routes attach in later phases.
+
+use axum::routing::{get, post};
+use axum::Router;
+
+use crate::handlers::{analytics, assets, auth, cards, health, wallet};
+use crate::middleware::cors;
+use crate::state::AppState;
+
+pub fn build_router(state: AppState) -> Router {
+    let auth_routes = Router::new()
+        .route("/register", post(auth::register))
+        .route("/login", post(auth::login))
+        .route("/magic-link/request", post(auth::magic_link_request))
+        .route("/magic-link/verify", post(auth::magic_link_verify))
+        .route("/oauth/apple", post(auth::oauth_apple))
+        .route("/refresh", post(auth::refresh))
+        .route("/logout", post(auth::logout));
+
+    let v1 = Router::new()
+        .nest("/auth", auth_routes)
+        .route("/cards", get(cards::list_cards).post(cards::create_card))
+        .route(
+            "/cards/:id",
+            get(cards::get_card)
+                .put(cards::replace_card)
+                .patch(cards::patch_card)
+                .delete(cards::delete_card),
+        )
+        .route("/cards/:id/publish", post(cards::publish_card))
+        .route("/cards/:id/duplicate", post(cards::duplicate_card))
+        .route("/cards/:id/export/vcf", get(cards::export_vcf))
+        .route("/cards/:id/wallet/apple", post(wallet::apple_pass))
+        .route("/cards/handle/:handle", get(cards::get_card_by_handle))
+        .route("/cards/:id/analytics", get(analytics::summary))
+        .route("/analytics/event", post(analytics::ingest_event))
+        .route("/assets/upload", post(assets::presign_upload))
+        .route("/assets/*key", axum::routing::delete(assets::delete_asset));
+
+    Router::new()
+        .route("/health", get(health::health))
+        .nest("/v1", v1)
+        .layer(cors::layer())
+        .with_state(state)
+}
