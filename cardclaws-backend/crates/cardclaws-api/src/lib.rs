@@ -8,6 +8,7 @@ pub mod assets;
 pub mod cache;
 pub mod email;
 pub mod error;
+pub mod geo;
 pub mod handlers;
 pub mod middleware;
 pub mod router;

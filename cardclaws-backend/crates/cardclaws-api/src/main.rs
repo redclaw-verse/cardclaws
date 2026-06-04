@@ -6,6 +6,7 @@ use std::sync::Arc;
 use cardclaws_api::assets::R2Store;
 use cardclaws_api::cache::RedisCache;
 use cardclaws_api::email::ResendEmailSender;
+use cardclaws_api::geo::{GeoResolver, NullGeoResolver};
 use cardclaws_api::{build_router, AppState};
 use cardclaws_auth::apple::HttpJwkProvider;
 use cardclaws_auth::JwtKeys;
@@ -46,6 +47,7 @@ async fn main() -> Result<(), BoxError> {
     let cache = RedisCache::connect(&config.redis_url).await?;
     let assets = R2Store::new(&config.r2)?;
     let pass_signer = build_pass_signer(&secrets).await?;
+    let geo = build_geo_resolver(&secrets).await;
 
     // Brand glyphs bundled into every pass. Solid-fill placeholders for now;
     // replaced by real CardClaws artwork when design assets land.
@@ -59,6 +61,7 @@ async fn main() -> Result<(), BoxError> {
         cache: Arc::new(cache),
         email: Arc::new(ResendEmailSender::new(resend_key, email_from)),
         assets: Arc::new(assets),
+        geo,
         jwt: JwtKeys::new(&config.jwt_secret),
         apple: Arc::new(HttpJwkProvider::new()),
         apple_audience,
@@ -69,11 +72,51 @@ async fn main() -> Result<(), BoxError> {
         brand: Arc::new(brand),
     };
 
+    // Hourly analytics rollup (PRD §18.2).
+    spawn_rollup_task(state.db.clone());
+
     let app = build_router(state);
     let listener = tokio::net::TcpListener::bind(&config.bind_addr).await?;
     tracing::info!(addr = %config.bind_addr, "cardclaws-api listening");
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+/// Spawn the background task that recomputes hourly analytics rollups. The first
+/// tick fires immediately, then once per hour.
+fn spawn_rollup_task(db: cardclaws_db::Db) {
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(3600));
+        loop {
+            ticker.tick().await;
+            match cardclaws_db::queries::analytics::run_rollup(&db).await {
+                Ok(n) => tracing::debug!(buckets = n, "analytics rollup complete"),
+                Err(e) => tracing::warn!(error = %e, "analytics rollup failed"),
+            }
+        }
+    });
+}
+
+/// Build the geo resolver. With `geoip` enabled and `MAXMIND_DB_PATH` set, uses
+/// the MaxMind City database; otherwise geo is unresolved (analytics still work).
+#[cfg(feature = "geoip")]
+async fn build_geo_resolver(secrets: &dyn SecretSource) -> Arc<dyn GeoResolver> {
+    use cardclaws_api::geo::MaxMindGeoResolver;
+    if let Some(path) = secrets.get("MAXMIND_DB_PATH").await {
+        match MaxMindGeoResolver::open(&path) {
+            Ok(r) => {
+                tracing::info!("geoip enabled");
+                return Arc::new(r);
+            }
+            Err(e) => tracing::warn!(error = %e, "failed to open MaxMind db; geo disabled"),
+        }
+    }
+    Arc::new(NullGeoResolver)
+}
+
+#[cfg(not(feature = "geoip"))]
+async fn build_geo_resolver(_secrets: &dyn SecretSource) -> Arc<dyn GeoResolver> {
+    Arc::new(NullGeoResolver)
 }
 
 /// Build the Apple pass signer. With `apple-signing` enabled, loads the Pass

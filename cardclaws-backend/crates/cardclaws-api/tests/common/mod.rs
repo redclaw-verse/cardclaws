@@ -21,6 +21,7 @@ use tower::ServiceExt;
 use cardclaws_api::assets::InMemoryStore;
 use cardclaws_api::cache::InMemoryCache;
 use cardclaws_api::email::CapturingEmailSender;
+use cardclaws_api::geo::{GeoLocation, GeoResolver};
 use cardclaws_api::{build_router, AppState};
 use cardclaws_auth::apple::{AppleAuthError, AppleJwks, JwkProvider};
 use cardclaws_auth::JwtKeys;
@@ -40,10 +41,31 @@ impl JwkProvider for NoopApple {
     }
 }
 
+/// Deterministic geo resolver for tests: any non-empty IP resolves to the US so
+/// the geo endpoint can be exercised without a MaxMind database.
+struct FakeGeo;
+
+impl GeoResolver for FakeGeo {
+    fn resolve(&self, ip: &str) -> GeoLocation {
+        if ip.is_empty() {
+            GeoLocation {
+                country: None,
+                city: None,
+            }
+        } else {
+            GeoLocation {
+                country: Some("US".to_string()),
+                city: Some("San Francisco".to_string()),
+            }
+        }
+    }
+}
+
 pub struct TestApp {
     pub router: Router,
     pub email: Arc<CapturingEmailSender>,
     pub assets: Arc<InMemoryStore>,
+    pub db: cardclaws_db::Db,
 }
 
 /// Returns `None` when no test DB is configured (test should early-return).
@@ -54,11 +76,13 @@ pub async fn try_setup() -> Option<TestApp> {
 
     let email = Arc::new(CapturingEmailSender::default());
     let assets = Arc::new(InMemoryStore::default());
+    let db_handle = db.clone();
     let state = AppState {
         db,
         cache: Arc::new(InMemoryCache::default()),
         email: email.clone(),
         assets: assets.clone(),
+        geo: Arc::new(FakeGeo),
         jwt: JwtKeys::new("test-jwt-secret"),
         apple: Arc::new(NoopApple),
         apple_audience: "com.cardclaws.test".into(),
@@ -80,6 +104,7 @@ pub async fn try_setup() -> Option<TestApp> {
         router: build_router(state),
         email,
         assets,
+        db: db_handle,
     })
 }
 
@@ -205,6 +230,37 @@ impl TestApp {
             .to_bytes()
             .to_vec();
         (status, content_type, bytes)
+    }
+
+    /// Like `request` but with extra request headers (e.g. `x-forwarded-for` to
+    /// exercise the geo path).
+    pub async fn request_with_headers(
+        &self,
+        method: &str,
+        path: &str,
+        token: Option<&str>,
+        body: Option<Value>,
+        headers: &[(&str, &str)],
+    ) -> (StatusCode, Value) {
+        let mut builder = Request::builder().method(method).uri(path);
+        if let Some(t) = token {
+            builder = builder.header("authorization", format!("Bearer {t}"));
+        }
+        for (k, v) in headers {
+            builder = builder.header(*k, *v);
+        }
+        let req = match body {
+            Some(b) => builder
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&b).unwrap()))
+                .unwrap(),
+            None => builder.body(Body::empty()).unwrap(),
+        };
+        let resp = self.router.clone().oneshot(req).await.unwrap();
+        let status = resp.status();
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        let json: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+        (status, json)
     }
 
     /// GET a path without following redirects; returns (status, Location header).

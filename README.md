@@ -91,13 +91,15 @@ bash scripts/policy-grep.sh   # no stub/placeholder markers (PRD §15.4)
   event (qr→qr_scan, nfc→nfc_tap, …) and 302-redirects to the profile;
   `GET /v1/cards/{id}/share-links` lists them. Events carry the `share_token`
   correlation, and `GET /v1/cards/{id}/analytics/feed` returns the chronological
-  feed. `cardclaws-wallet` crate
-  (pass.json builder, SHA-1 manifest, strip render, zip packager, PKCS#7
-  OpenSSL signer behind the `apple-signing` feature) wired at
-  `POST /v1/cards/{id}/wallet/apple`. Analytics ingest + summary
-  (`/v1/analytics/event`, `/v1/cards/{id}/analytics`) with daily-salted IP
-  hashing; `profile_visit` recorded on public handle lookup.
-  Remaining for B4: the Astro web profile (client surface) + mobile viewer/flip.
+  feed.
+- **Analytics rollups + geo (backend)** — done. Idempotent hourly rollup
+  (`ON CONFLICT DO UPDATE`) into `analytics_rollups_hourly`, run by a Tokio
+  background task; `GET /v1/cards/{id}/analytics/geo` (country breakdown). Geo
+  lookup is behind a `GeoResolver` trait — real MaxMind under the `geoip`
+  feature, no-op otherwise; the raw IP is resolved then discarded (only the
+  hash + coarse country/city are stored).
+- **Remaining:** mobile advanced layers + share/QR/NFC UI + analytics dashboard
+  screen (P2-3), then Android + Google Wallet.
 
 Backend tests: **67 passing** (unit + integration). Run with a live Postgres
 (`TEST_DATABASE_URL`) to exercise the integration suite.

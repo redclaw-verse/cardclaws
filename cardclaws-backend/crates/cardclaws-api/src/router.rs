@@ -35,6 +35,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/cards/handle/:handle", get(cards::get_card_by_handle))
         .route("/cards/:id/analytics", get(analytics::summary))
         .route("/cards/:id/analytics/feed", get(analytics::feed))
+        .route("/cards/:id/analytics/geo", get(analytics::geo))
         .route("/cards/:id/share", post(share::create_share))
         .route("/cards/:id/share-links", get(share::list_shares))
         .route("/s/:token", get(share::resolve_share))

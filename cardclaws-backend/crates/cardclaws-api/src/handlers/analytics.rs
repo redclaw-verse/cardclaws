@@ -3,7 +3,7 @@
 use axum::extract::{Path, State};
 use axum::http::HeaderMap;
 use axum::Json;
-use cardclaws_db::models::analytics::{AnalyticsSummary, FeedEvent};
+use cardclaws_db::models::analytics::{AnalyticsSummary, FeedEvent, GeoCount};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -60,6 +60,17 @@ pub async fn feed(
 ) -> ApiResult<Json<Vec<FeedEvent>>> {
     Ok(Json(
         analytics_service::feed(&state, id, user.user_id).await?,
+    ))
+}
+
+/// Owner-only geo distribution (country → visits).
+pub async fn geo(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Vec<GeoCount>>> {
+    Ok(Json(
+        analytics_service::geo_breakdown(&state, id, user.user_id).await?,
     ))
 }
 

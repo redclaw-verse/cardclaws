@@ -68,6 +68,11 @@ pub async fn record(
 ) -> Result<(), AppError> {
     debug_assert!(ALL_EVENT_TYPES.contains(&event_type));
     let ip_hash = ip.map(|raw| hash_ip(&state.ip_hash_secret, raw));
+    // Resolve geo from the raw IP, then immediately drop the raw IP — only the
+    // hash and coarse country/city are persisted (PRD §18.3).
+    let geo = ip.map(|raw| state.geo.resolve(raw));
+    let country = geo.as_ref().and_then(|g| g.country.as_deref());
+    let city = geo.as_ref().and_then(|g| g.city.as_deref());
     analytics::insert_event(
         &state.db,
         analytics::NewEvent {
@@ -75,11 +80,23 @@ pub async fn record(
             event_type,
             share_token,
             ip_hash: ip_hash.as_deref(),
+            country,
+            city,
             user_agent,
         },
     )
     .await
     .map_db()
+}
+
+/// Owner-only geo distribution for a card.
+pub async fn geo_breakdown(
+    state: &AppState,
+    card_id: Uuid,
+    user_id: Uuid,
+) -> Result<Vec<cardclaws_db::models::analytics::GeoCount>, AppError> {
+    card_service::get_owned(state, card_id, user_id).await?;
+    analytics::geo_breakdown(&state.db, card_id).await.map_db()
 }
 
 /// Owner-only metrics summary for a card.

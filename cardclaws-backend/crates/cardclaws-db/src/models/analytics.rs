@@ -14,6 +14,26 @@ pub struct AnalyticsSummary {
     pub link_clicks: i64,
 }
 
+/// One hourly rollup bucket (PRD §9.3 `analytics_rollups_hourly`).
+#[derive(Debug, Clone, FromRow, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RollupRow {
+    pub hour: DateTime<Utc>,
+    pub visits: i32,
+    pub qr_scans: i32,
+    pub nfc_taps: i32,
+    pub saves: i32,
+    pub link_clicks: i32,
+}
+
+/// A country's visit count for the geo distribution (PRD §6.7.1).
+#[derive(Debug, Clone, FromRow, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeoCount {
+    pub country: String,
+    pub visits: i64,
+}
+
 /// One row of the chronological event feed (PRD §6.7.2).
 #[derive(Debug, Clone, FromRow, Serialize)]
 #[serde(rename_all = "camelCase")]
