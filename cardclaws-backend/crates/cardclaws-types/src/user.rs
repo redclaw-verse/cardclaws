@@ -42,6 +42,11 @@ impl Tier {
         !matches!(self, Tier::Free)
     }
 
+    /// Only Team/Enterprise tiers can own a team (PRD §19.1).
+    pub fn can_own_team(self) -> bool {
+        matches!(self, Tier::Team | Tier::Enterprise)
+    }
+
     /// Analytics retention window in days; `None` = unlimited (PRD §19.1).
     pub fn analytics_retention_days(self) -> Option<i64> {
         match self {

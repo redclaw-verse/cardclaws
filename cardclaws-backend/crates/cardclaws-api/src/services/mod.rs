@@ -4,5 +4,6 @@ pub mod billing_service;
 pub mod card_service;
 pub mod profile_service;
 pub mod share_service;
+pub mod team_service;
 pub mod vcard;
 pub mod wallet_service;

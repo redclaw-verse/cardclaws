@@ -5,4 +5,5 @@ pub mod analytics;
 pub mod cards;
 pub mod sessions;
 pub mod share;
+pub mod teams;
 pub mod users;

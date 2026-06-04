@@ -84,7 +84,16 @@ bash scripts/policy-grep.sh   # no stub/placeholder markers (PRD §15.4)
   store, QR); full app type-checks. Component/E2E runs need a simulator.
 - **B4** Apple Wallet + analytics (backend) — done.
 
-### Phase 3 (in progress)
+### Phase 4 (in progress)
+
+- **Teams data layer (backend)** — done. `teams` + `team_memberships`
+  (migration 0003) with owner/admin/member roles. `POST /v1/teams` (Team-tier
+  gated), `GET /v1/teams/{id}`, `GET|POST /v1/teams/{id}/members`,
+  `DELETE …/members/{userId}`. Add-by-email (existing accounts), seat-cap
+  enforcement (402), role-based authorization (admin to mutate; non-members get
+  404 so teams aren't enumerable); owner can't be removed.
+
+### Phase 3
 
 - **Tier-gate enforcement (backend)** — done. `Tier` capability model
   (pro-layers, geo-analytics, custom-domain, retention). Pro-only layer types

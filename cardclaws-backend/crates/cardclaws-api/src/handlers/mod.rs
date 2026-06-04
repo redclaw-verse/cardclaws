@@ -5,5 +5,6 @@ pub mod cards;
 pub mod health;
 pub mod profile;
 pub mod share;
+pub mod teams;
 pub mod wallet;
 pub mod webhooks;
