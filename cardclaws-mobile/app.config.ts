@@ -24,6 +24,7 @@ const config: ExpoConfig = {
         cameraPermission: "CardClaws uses the camera to capture your card image.",
       },
     ],
+    "./plugins/withReleaseSigning.js",
   ],
   experiments: {
     typedRoutes: true,

@@ -7,6 +7,11 @@ node_modules/
 /android
 /ios
 
+# Signing secrets + build artifacts — NEVER commit
+/credentials
+*.keystore
+*.apk
+
 # Misc
 *.log
 .DS_Store
