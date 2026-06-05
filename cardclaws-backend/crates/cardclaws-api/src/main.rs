@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use cardclaws_api::ai::{AiClient, DisabledAiClient, GeminiClient};
 use cardclaws_api::assets::R2Store;
 use cardclaws_api::cache::RedisCache;
 use cardclaws_api::email::ResendEmailSender;
@@ -50,6 +51,13 @@ async fn main() -> Result<(), BoxError> {
     let pass_signer = build_pass_signer(&secrets).await?;
     let google_signer = build_google_signer(&secrets).await;
     let geo = build_geo_resolver(&secrets).await;
+    let ai: Arc<dyn AiClient> = match GeminiClient::new(config.gemini_api_key.clone()) {
+        Some(c) => {
+            tracing::info!("AI card generator enabled (Gemini)");
+            Arc::new(c)
+        }
+        None => Arc::new(DisabledAiClient),
+    };
 
     // Brand glyphs bundled into every pass. Solid-fill placeholders for now;
     // replaced by real CardClaws artwork when design assets land.
@@ -64,6 +72,7 @@ async fn main() -> Result<(), BoxError> {
         email: Arc::new(ResendEmailSender::new(resend_key, email_from)),
         assets: Arc::new(assets),
         geo,
+        ai,
         jwt: JwtKeys::new(&config.jwt_secret),
         apple: Arc::new(HttpJwkProvider::new()),
         apple_audience,

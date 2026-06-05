@@ -5,7 +5,7 @@ use axum::routing::{get, post};
 use axum::Router;
 
 use crate::handlers::{
-    account, analytics, assets, auth, cards, health, profile, share, teams, wallet, webhooks,
+    account, ai, analytics, assets, auth, cards, health, profile, share, teams, wallet, webhooks,
 };
 use crate::middleware::cors;
 use crate::state::AppState;
@@ -65,6 +65,10 @@ pub fn build_router(state: AppState) -> Router {
             axum::routing::delete(teams::delete_template),
         )
         .route("/analytics/event", post(analytics::ingest_event))
+        .route("/ai/refine", post(ai::refine))
+        .route("/ai/image", post(ai::image))
+        .route("/ai/video", post(ai::start_video))
+        .route("/ai/video/status", post(ai::video_status))
         .route("/account/export", get(account::export_data))
         .route("/account", axum::routing::delete(account::delete_account))
         .route("/assets/upload", post(assets::presign_upload))

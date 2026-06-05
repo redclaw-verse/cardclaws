@@ -4,6 +4,7 @@
 //! test doubles (in-memory cache, capturing email, fake Apple keys). The binary
 //! (`main.rs`) wires the production implementations.
 
+pub mod ai;
 pub mod assets;
 pub mod cache;
 pub mod email;

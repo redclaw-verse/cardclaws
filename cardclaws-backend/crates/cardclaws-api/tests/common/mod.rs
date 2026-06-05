@@ -18,6 +18,7 @@ use http_body_util::BodyExt;
 use serde_json::Value;
 use tower::ServiceExt;
 
+use cardclaws_api::ai::FakeAiClient;
 use cardclaws_api::assets::InMemoryStore;
 use cardclaws_api::cache::InMemoryCache;
 use cardclaws_api::email::CapturingEmailSender;
@@ -84,6 +85,7 @@ pub async fn try_setup() -> Option<TestApp> {
         email: email.clone(),
         assets: assets.clone(),
         geo: Arc::new(FakeGeo),
+        ai: Arc::new(FakeAiClient),
         jwt: JwtKeys::new("test-jwt-secret"),
         apple: Arc::new(NoopApple),
         apple_audience: "com.cardclaws.test".into(),

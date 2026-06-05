@@ -54,6 +54,8 @@ pub struct Config {
     pub ip_hash_secret: String,
     /// Shared secret RevenueCat sends in the webhook `Authorization` header.
     pub billing_webhook_secret: String,
+    /// Google Gemini API key (for the AI card generator). Empty = AI disabled.
+    pub gemini_api_key: String,
     pub bind_addr: String,
     pub r2: R2Config,
     pub wallet: WalletConfig,
@@ -102,6 +104,7 @@ impl Config {
             profile_base_url: optional(src, "PROFILE_BASE_URL", "https://cardclaws.com").await,
             ip_hash_secret: require(src, "IP_HASH_SECRET").await?,
             billing_webhook_secret: optional(src, "BILLING_WEBHOOK_SECRET", "").await,
+            gemini_api_key: optional(src, "GEMINI_API_KEY", "").await,
             bind_addr: optional(src, "BIND_ADDR", "0.0.0.0:8080").await,
             r2: R2Config {
                 endpoint: optional(
