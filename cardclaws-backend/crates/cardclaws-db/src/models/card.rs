@@ -17,4 +17,7 @@ pub struct CardRow {
     pub version: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// Optional AI welcome shown on scan: { kind, message, imageDataUrl }.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub welcome: Option<serde_json::Value>,
 }

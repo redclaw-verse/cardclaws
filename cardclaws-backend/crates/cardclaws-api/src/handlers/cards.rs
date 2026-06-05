@@ -20,6 +20,38 @@ pub struct CreateCardRequest {
 }
 
 #[derive(Deserialize)]
+pub struct WelcomeRequest {
+    pub prompt: String,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub style: Option<String>,
+    #[serde(default)]
+    pub mood: Option<String>,
+}
+
+/// Generate + attach an AI welcome (owner only). Shown when the QR is scanned.
+pub async fn set_welcome(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<Uuid>,
+    Json(req): Json<WelcomeRequest>,
+) -> ApiResult<Json<CardRow>> {
+    Ok(Json(
+        card_service::set_welcome(
+            &state,
+            id,
+            user.user_id,
+            &req.prompt,
+            req.message.as_deref(),
+            req.style.as_deref(),
+            req.mood.as_deref(),
+        )
+        .await?,
+    ))
+}
+
+#[derive(Deserialize)]
 pub struct DefinitionBody {
     pub definition: serde_json::Value,
 }

@@ -17,7 +17,7 @@ pub async fn insert(db: &Db, new: NewCard<'_>) -> Result<CardRow, sqlx::Error> {
         INSERT INTO cards (owner_id, handle, definition)
         VALUES ($1, $2, $3)
         RETURNING id, owner_id, handle, status, definition, version,
-                  created_at, updated_at
+                  created_at, updated_at, welcome
         "#,
     )
     .bind(new.owner_id)
@@ -29,7 +29,7 @@ pub async fn insert(db: &Db, new: NewCard<'_>) -> Result<CardRow, sqlx::Error> {
 
 pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<CardRow>, sqlx::Error> {
     sqlx::query_as(
-        r#"SELECT id, owner_id, handle, status, definition, version, created_at, updated_at
+        r#"SELECT id, owner_id, handle, status, definition, version, created_at, updated_at, welcome
            FROM cards WHERE id = $1"#,
     )
     .bind(id)
@@ -39,7 +39,7 @@ pub async fn find_by_id(db: &Db, id: Uuid) -> Result<Option<CardRow>, sqlx::Erro
 
 pub async fn list_by_owner(db: &Db, owner_id: Uuid) -> Result<Vec<CardRow>, sqlx::Error> {
     sqlx::query_as(
-        r#"SELECT id, owner_id, handle, status, definition, version, created_at, updated_at
+        r#"SELECT id, owner_id, handle, status, definition, version, created_at, updated_at, welcome
            FROM cards WHERE owner_id = $1 ORDER BY created_at DESC"#,
     )
     .bind(owner_id)
@@ -51,7 +51,7 @@ pub async fn list_by_owner(db: &Db, owner_id: Uuid) -> Result<Vec<CardRow>, sqlx
 /// review A2 — the profile resolves the active card's handle).
 pub async fn find_active_by_handle(db: &Db, handle: &str) -> Result<Option<CardRow>, sqlx::Error> {
     sqlx::query_as(
-        r#"SELECT id, owner_id, handle, status, definition, version, created_at, updated_at
+        r#"SELECT id, owner_id, handle, status, definition, version, created_at, updated_at, welcome
            FROM cards WHERE handle = $1 AND status = 'active'"#,
     )
     .bind(handle)
@@ -80,11 +80,30 @@ pub async fn update_definition(
         UPDATE cards
         SET definition = $2, version = version + 1, updated_at = now()
         WHERE id = $1
-        RETURNING id, owner_id, handle, status, definition, version, created_at, updated_at
+        RETURNING id, owner_id, handle, status, definition, version, created_at, updated_at, welcome
         "#,
     )
     .bind(id)
     .bind(definition)
+    .fetch_one(db)
+    .await
+}
+
+/// Set (or clear) the AI welcome shown on scan.
+pub async fn update_welcome(
+    db: &Db,
+    id: Uuid,
+    welcome: &serde_json::Value,
+) -> Result<CardRow, sqlx::Error> {
+    sqlx::query_as(
+        r#"
+        UPDATE cards SET welcome = $2, updated_at = now()
+        WHERE id = $1
+        RETURNING id, owner_id, handle, status, definition, version, created_at, updated_at, welcome
+        "#,
+    )
+    .bind(id)
+    .bind(welcome)
     .fetch_one(db)
     .await
 }
@@ -94,7 +113,7 @@ pub async fn set_status(db: &Db, id: Uuid, status: &str) -> Result<CardRow, sqlx
         r#"
         UPDATE cards SET status = $2, updated_at = now()
         WHERE id = $1
-        RETURNING id, owner_id, handle, status, definition, version, created_at, updated_at
+        RETURNING id, owner_id, handle, status, definition, version, created_at, updated_at, welcome
         "#,
     )
     .bind(id)

@@ -21,6 +21,42 @@ pub async fn get_owned(state: &AppState, id: Uuid, user_id: Uuid) -> Result<Card
     Ok(card)
 }
 
+/// Generate an AI welcome image (nano-banana) and attach it to the card the
+/// caller owns — shown on the public profile when the QR is scanned.
+pub async fn set_welcome(
+    state: &AppState,
+    id: Uuid,
+    user_id: Uuid,
+    prompt: &str,
+    message: Option<&str>,
+    style: Option<&str>,
+    mood: Option<&str>,
+) -> Result<CardRow, AppError> {
+    get_owned(state, id, user_id).await?;
+    if prompt.trim().is_empty() {
+        return Err(AppError::Validation("prompt is required".into()));
+    }
+    let brief = crate::ai::SceneBrief {
+        scene: prompt.to_string(),
+        style: style.map(str::to_string),
+        mood: mood.map(str::to_string),
+    };
+    let refined = state.ai.refine_prompt(&brief).await.map_err(ai_to_app)?;
+    let img = state.ai.generate_image(&refined).await.map_err(ai_to_app)?;
+    let welcome = serde_json::json!({
+        "kind": "image",
+        "message": message.unwrap_or("Great to meet you"),
+        "imageDataUrl": format!("data:{};base64,{}", img.mime_type, img.base64),
+    });
+    cards::update_welcome(&state.db, id, &welcome)
+        .await
+        .map_db()
+}
+
+fn ai_to_app(e: crate::ai::AiError) -> AppError {
+    AppError::Internal(e.to_string())
+}
+
 pub async fn list(state: &AppState, user_id: Uuid) -> Result<Vec<CardRow>, AppError> {
     cards::list_by_owner(&state.db, user_id).await.map_db()
 }

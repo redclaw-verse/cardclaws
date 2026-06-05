@@ -3,6 +3,7 @@
 // active card, renders the hero + sticky contact-actions bar, and wires the
 // Save Contact (.vcf) download with a contact_save analytics ping.
 import CardHero from "../components/CardHero.astro";
+import WelcomeHero from "../components/WelcomeHero.astro";
 import { fetchProfile, publicApiBase } from "../lib/api";
 import { buildVcard, extractContact, faceBackground } from "../lib/contact";
 
@@ -12,6 +13,11 @@ const profile = handle ? await fetchProfile(handle, Astro.request.headers) : nul
 if (!profile) {
   return new Response("Profile not found", { status: 404 });
 }
+
+// Scan-experience selector. The AI Welcome plays when the card has one, unless
+// the scan explicitly asks for the plain profile (?x=profile).
+const experience = Astro.url.searchParams.get("x");
+const welcome = experience === "profile" ? null : profile.welcome;
 
 const contact = extractContact(profile.definition);
 const bgHex = faceBackground(profile.definition);
@@ -36,6 +42,9 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
+    {welcome && (
+      <WelcomeHero message={welcome.message} name={name} imageUrl={welcome.imageDataUrl} />
+    )}
     <main>
       <CardHero
         name={name}

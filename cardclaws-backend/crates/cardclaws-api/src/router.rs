@@ -65,6 +65,7 @@ pub fn build_router(state: AppState) -> Router {
             axum::routing::delete(teams::delete_template),
         )
         .route("/analytics/event", post(analytics::ingest_event))
+        .route("/cards/:id/welcome", post(cards::set_welcome))
         .route("/ai/refine", post(ai::refine))
         .route("/ai/image", post(ai::image))
         .route("/ai/video", post(ai::start_video))

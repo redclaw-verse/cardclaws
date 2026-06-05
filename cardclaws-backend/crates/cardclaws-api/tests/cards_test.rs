@@ -223,3 +223,61 @@ async fn duplicate_creates_independent_draft() {
     assert_ne!(body["handle"].as_str().unwrap(), handle);
     assert_eq!(body["status"], "draft");
 }
+
+#[tokio::test]
+async fn welcome_generates_and_appears_on_public_profile() {
+    let app = require_app!();
+    let token = app.register_and_token().await;
+    let (id, handle) = create_card(&app, &token).await;
+
+    // Generate the AI welcome (FakeAiClient returns a 1x1 png).
+    let (status, body) = app
+        .request(
+            "POST",
+            &format!("/v1/cards/{id}/welcome"),
+            Some(&token),
+            Some(json!({ "prompt": "a calm forest at dawn", "message": "Great to meet you, I'm Omar" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "set welcome failed: {body}");
+    assert_eq!(body["welcome"]["kind"], "image");
+    assert!(body["welcome"]["imageDataUrl"]
+        .as_str()
+        .unwrap()
+        .starts_with("data:image/png;base64,"));
+
+    // Publish -> the public profile exposes the welcome.
+    app.request(
+        "POST",
+        &format!("/v1/cards/{id}/publish"),
+        Some(&token),
+        None,
+    )
+    .await;
+    let (status, profile) = app
+        .request("GET", &format!("/v1/cards/handle/{handle}"), None, None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(profile["welcome"]["message"], "Great to meet you, I'm Omar");
+    assert!(profile["welcome"]["imageDataUrl"]
+        .as_str()
+        .unwrap()
+        .starts_with("data:image/png"));
+}
+
+#[tokio::test]
+async fn welcome_requires_ownership() {
+    let app = require_app!();
+    let owner = app.register_and_token().await;
+    let (id, _handle) = create_card(&app, &owner).await;
+    let other = app.register_and_token().await;
+    let (status, _) = app
+        .request(
+            "POST",
+            &format!("/v1/cards/{id}/welcome"),
+            Some(&other),
+            Some(json!({ "prompt": "x" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

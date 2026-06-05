@@ -10,6 +10,15 @@ export interface PublicProfile {
   createdAt: string;
   updatedAt: string;
   ownerDisplayName: string;
+  /** Optional AI welcome shown on scan (set by the card owner). */
+  welcome?: Welcome;
+}
+
+export interface Welcome {
+  kind: "image";
+  message: string;
+  /** `data:image/...;base64,...` (MVP) or an https URL later. */
+  imageDataUrl: string;
 }
 
 // Loose mirror of the Rust CardDefinition — only the parts the profile reads.
