@@ -17,6 +17,9 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    // Allow cleartext HTTP so the demo can reach the backend over `adb reverse`
+    // (localhost:8080). Production scopes this to specific domains.
+    ["expo-build-properties", { android: { usesCleartextTraffic: true } }],
     [
       "expo-image-picker",
       {

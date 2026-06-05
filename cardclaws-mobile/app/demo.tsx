@@ -1,12 +1,15 @@
-// Standalone, no-login demo (no backend needed): take/pick a photo → it's your
-// card front; swipe → the back reveals a QR code + your info. Everything is
-// built in-memory on the device.
+// Standalone card editor (no login/backend): take/pick a photo → card front;
+// fill name/title/QR link → Save. Saved cards live in the on-device gallery
+// (localCardsStore). Opening with ?cardId=… edits an existing card.
 
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { ResizeMode, Video } from "expo-av";
 import * as ImagePicker from "expo-image-picker";
-import { Stack } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -15,11 +18,22 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { CardBackTemplate } from "../src/components/card/CardBackTemplate";
 import { CardViewer } from "../src/components/card/CardViewer";
+import { defaultLinks, LinksEditor } from "../src/components/LinksEditor";
 import { newLayerId } from "../src/stores/cardStore";
+import { useDraftStore } from "../src/stores/draftStore";
+import { CardLink, useLocalCardsStore } from "../src/stores/localCardsStore";
 import { CardDefinition, DEFAULT_SETTINGS, TextLayer } from "../src/types/card";
+import { deleteImage, persistImage, persistVideo } from "../src/utils/imageStore";
 
-function textLayer(text: string, y: number, size: number, color: string): TextLayer {
+function textLayer(
+  text: string,
+  y: number,
+  size: number,
+  color: string,
+  align: "left" | "right" = "left",
+): TextLayer {
   return {
     id: newLayerId(),
     type: "text",
@@ -36,24 +50,28 @@ function textLayer(text: string, y: number, size: number, color: string): TextLa
     lineHeight: size + 4,
     letterSpacing: 0,
     color,
-    align: "left",
+    align,
   };
 }
 
-/// Build the demo card in memory: photo as the full-bleed face, QR + info on the
-/// back.
-function buildDemoCard(imageUri: string, name: string, title: string): CardDefinition {
+function buildDemoCard(
+  mediaUri: string,
+  isVideo: boolean,
+  name: string,
+  title: string,
+): CardDefinition {
   return {
     id: "demo",
     ownerId: "demo",
     handle: "demo",
     version: 1,
     face: {
+      // Name + title stacked at the top-right.
       layers: [
-        textLayer(name, 0.78, 30, "#ffffff"),
-        title ? textLayer(title, 0.87, 18, "#f0f0f2") : textLayer("", 0.87, 1, "#ffffff"),
+        textLayer(name, 0.06, 28, "#ffffff", "right"),
+        title ? textLayer(title, 0.135, 17, "#f0f0f2", "right") : textLayer("", 0.135, 1, "#fff"),
       ],
-      background: { type: "image", value: imageUri },
+      background: { type: isVideo ? "video" : "image", value: mediaUri },
       entryAnimation: "fade",
     },
     back: {
@@ -79,12 +97,58 @@ function buildDemoCard(imageUri: string, name: string, title: string): CardDefin
   };
 }
 
-export default function DemoScreen() {
+export default function CardEditorScreen() {
+  const router = useRouter();
+  const { cardId } = useLocalSearchParams<{ cardId?: string }>();
+  const upsert = useLocalCardsStore((s) => s.upsert);
+  const remove = useLocalCardsStore((s) => s.remove);
+  const getById = useLocalCardsStore((s) => s.getById);
+
+  // A stable id for the lifetime of this editor (new card or the one we're editing).
+  const [id] = useState(() => cardId ?? newLayerId());
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
   const [name, setName] = useState("Omar Sobh");
   const [title, setTitle] = useState("Founder & CEO");
   const [url, setUrl] = useState("https://cardclaws.com/omar");
+  const [links, setLinks] = useState<CardLink[]>(() => defaultLinks());
   const [showing, setShowing] = useState(false);
+  const [onBack, setOnBack] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load an existing card and jump straight to viewing it.
+  useEffect(() => {
+    if (!cardId) return;
+    const existing = getById(cardId);
+    if (existing) {
+      setImageUri(existing.imagePath || null);
+      setVideoUri(existing.videoPath ?? null);
+      setName(existing.name);
+      setTitle(existing.title);
+      setUrl(existing.url);
+      setLinks(existing.links ?? []);
+      setOnBack(false);
+      setShowing(true);
+    }
+  }, [cardId, getById]);
+
+  // When returning from the AI generators, adopt the image/video they produced.
+  useFocusEffect(
+    useCallback(() => {
+      const draft = useDraftStore.getState();
+      if (draft.pendingImageUri) {
+        setImageUri(draft.pendingImageUri);
+        setVideoUri(null);
+        setShowing(false);
+        draft.setPendingImageUri(null);
+      }
+      if (draft.pendingVideoUri) {
+        setVideoUri(draft.pendingVideoUri);
+        setShowing(false);
+        draft.setPendingVideoUri(null);
+      }
+    }, []),
+  );
 
   const pickFromLibrary = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -93,7 +157,11 @@ export default function DemoScreen() {
       aspect: [2, 3],
       quality: 0.9,
     });
-    if (!res.canceled) setImageUri(res.assets[0].uri);
+    // A photo replaces any AI video on the front.
+    if (!res.canceled) {
+      setImageUri(res.assets[0].uri);
+      setVideoUri(null);
+    }
   };
 
   const takePhoto = async () => {
@@ -104,35 +172,88 @@ export default function DemoScreen() {
       aspect: [2, 3],
       quality: 0.9,
     });
-    if (!res.canceled) setImageUri(res.assets[0].uri);
+    if (!res.canceled) {
+      setImageUri(res.assets[0].uri);
+      setVideoUri(null);
+    }
   };
 
-  if (showing && imageUri) {
-    const card = buildDemoCard(imageUri, name, title);
+  const save = async () => {
+    if (!imageUri && !videoUri) return;
+    setSaving(true);
+    try {
+      const imagePath = imageUri ? await persistImage(imageUri, id) : (getById(id)?.imagePath ?? "");
+      const videoPath = videoUri ? await persistVideo(videoUri, id) : undefined;
+      upsert({ id, name, title, url, imagePath, videoPath, links, updatedAt: Date.now() });
+      if (imageUri) setImageUri(imagePath);
+      if (videoPath) setVideoUri(videoPath);
+      setOnBack(false);
+      setShowing(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onDelete = async () => {
+    const existing = getById(id);
+    if (existing?.imagePath) await deleteImage(existing.imagePath);
+    if (existing?.videoPath) await deleteImage(existing.videoPath);
+    remove(id);
+    router.replace("/");
+  };
+
+  const media = videoUri ?? imageUri;
+  if (showing && media) {
+    const card = buildDemoCard(media, !!videoUri, name, title);
     return (
       <View style={styles.viewerRoot}>
-        {/* Hide the header + status bar so the card is truly full-bleed. */}
         <Stack.Screen options={{ headerShown: false }} />
         <StatusBar hidden />
-        <CardViewer card={card} profileUrl={url} fullScreen />
-        <Text style={styles.swipeHint}>Swipe or tap the card to flip →</Text>
-        <Pressable style={styles.editBtn} onPress={() => setShowing(false)}>
-          <Text style={styles.editText}>Edit</Text>
-        </Pressable>
+        <CardViewer
+          card={card}
+          profileUrl={url}
+          fullScreen
+          onSideChange={setOnBack}
+          backContent={
+            <CardBackTemplate name={name} title={title} profileUrl={url} links={links} />
+          }
+        />
+        {/* Front: a hint to flip. Back (QR side): the Gallery / Edit controls. */}
+        {!onBack ? (
+          <Text style={styles.swipeHint}>Swipe or tap the card to flip →</Text>
+        ) : (
+          <View style={styles.viewerActions}>
+            <Pressable style={styles.pillDark} onPress={() => router.replace("/")}>
+              <Text style={styles.pillText}>Gallery</Text>
+            </Pressable>
+            <Pressable style={styles.pillDark} onPress={() => setShowing(false)}>
+              <Text style={styles.pillText}>Edit</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: "Card demo" }} />
-      <Text style={styles.h1}>Make your card</Text>
+      <Stack.Screen options={{ title: cardId ? "Edit card" : "New card" }} />
+      <Text style={styles.h1}>{cardId ? "Edit your card" : "Make your card"}</Text>
 
-      {imageUri ? (
+      {videoUri ? (
+        <Video
+          source={{ uri: videoUri }}
+          style={styles.preview}
+          resizeMode={ResizeMode.COVER}
+          isLooping
+          shouldPlay
+          isMuted
+        />
+      ) : imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="cover" />
       ) : (
         <View style={[styles.preview, styles.previewEmpty]}>
-          <Text style={styles.previewHint}>Your photo becomes the card front</Text>
+          <Text style={styles.previewHint}>Your photo or AI scene becomes the card front</Text>
         </View>
       )}
 
@@ -145,17 +266,37 @@ export default function DemoScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.photoRow}>
+        <Pressable style={styles.aiBtn} onPress={() => router.push("/generate-image")}>
+          <MaterialCommunityIcons name="auto-fix" size={22} color="#f5f5f7" />
+          <Text style={styles.photoText}>AI scene</Text>
+        </Pressable>
+        <Pressable style={styles.aiBtn} onPress={() => router.push("/generate-video")}>
+          <MaterialCommunityIcons name="movie-open-outline" size={22} color="#f5f5f7" />
+          <Text style={styles.photoText}>AI video</Text>
+        </Pressable>
+      </View>
+
       <Field label="Name" value={name} onChangeText={setName} />
       <Field label="Title" value={title} onChangeText={setTitle} />
       <Field label="QR link" value={url} onChangeText={setUrl} autoCapitalize="none" />
 
+      <Text style={styles.sectionLabel}>Back of card · scannable links</Text>
+      <LinksEditor links={links} onChange={setLinks} />
+
       <Pressable
-        style={[styles.cta, !imageUri && styles.ctaDisabled]}
-        disabled={!imageUri}
-        onPress={() => setShowing(true)}
+        style={[styles.cta, (!media || saving) && styles.ctaDisabled]}
+        disabled={!media || saving}
+        onPress={save}
       >
-        <Text style={styles.ctaText}>Show my card</Text>
+        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Save card</Text>}
       </Pressable>
+
+      {cardId && (
+        <Pressable onPress={onDelete}>
+          <Text style={styles.deleteText}>Delete card</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -195,8 +336,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   photoText: { color: "#f5f5f7", fontWeight: "600", fontSize: 16 },
+  aiBtn: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#222228",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   field: { gap: 6 },
   label: { color: "#9a9aa0", fontSize: 14 },
+  sectionLabel: { color: "#f5f5f7", fontSize: 16, fontWeight: "700", marginTop: 12 },
   input: {
     backgroundColor: "#15151a",
     color: "#f5f5f7",
@@ -214,22 +366,27 @@ const styles = StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.4 },
   ctaText: { color: "#fff", fontWeight: "700", fontSize: 17 },
+  deleteText: { color: "#ff453a", textAlign: "center", paddingVertical: 14, fontWeight: "600" },
   viewerRoot: { flex: 1, backgroundColor: "#0a0a0c" },
   swipeHint: {
     position: "absolute",
-    bottom: 90,
+    bottom: 96,
     alignSelf: "center",
     color: "#9a9aa0",
     fontSize: 14,
   },
-  editBtn: {
+  viewerActions: {
     position: "absolute",
     bottom: 36,
     alignSelf: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  pillDark: {
     backgroundColor: "#222228",
     borderRadius: 20,
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
-  editText: { color: "#f5f5f7", fontWeight: "600" },
+  pillText: { color: "#f5f5f7", fontWeight: "600" },
 });
