@@ -2,6 +2,7 @@
 // layer using its fractional geometry. Background / text / logo / contact layers
 // are supported in Phase 1 (Skia is reserved for the Pro shader/particle layers).
 
+import { ResizeMode, Video } from "expo-av";
 import { Image, StyleSheet, Text, View } from "react-native";
 import {
   BackgroundConfig,
@@ -44,6 +45,15 @@ function assetUri(r2Key: string): string {
 /// r2Key resolves to the asset endpoint.
 function backgroundImageUri(bg: BackgroundConfig): string | null {
   if (bg.type !== "image") return null;
+  if (bg.value) return bg.value;
+  if (bg.r2Key) return assetUri(bg.r2Key);
+  return null;
+}
+
+/// Resolve a video background to a displayable URI (a local file:// for the demo
+/// or an asset key). Rendered as a looping, muted, cover-fit clip.
+function backgroundVideoUri(bg: BackgroundConfig): string | null {
+  if (bg.type !== "video") return null;
   if (bg.value) return bg.value;
   if (bg.r2Key) return assetUri(bg.r2Key);
   return null;
@@ -152,10 +162,21 @@ function LayerView({
 export function CardFace({ side, width, height, borderRadius = 24, profileUrl }: Props) {
   const ordered = [...side.layers].sort((a, b) => a.zIndex - b.zIndex);
   const bgImage = backgroundImageUri(side.background);
+  const bgVideo = backgroundVideoUri(side.background);
   return (
     <View style={[styles.face, { width, height, borderRadius }, backgroundStyle(side.background)]}>
       {bgImage && (
         <Image source={{ uri: bgImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      )}
+      {bgVideo && (
+        <Video
+          source={{ uri: bgVideo }}
+          style={StyleSheet.absoluteFill}
+          resizeMode={ResizeMode.COVER}
+          isLooping
+          shouldPlay
+          isMuted
+        />
       )}
       {ordered.map((layer) => (
         <LayerView

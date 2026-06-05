@@ -26,6 +26,8 @@ interface Props {
   durationMs?: number;
   hapticEnabled?: boolean;
   gesture?: "swipe" | "doubleTap" | "both";
+  /** Fired (on the JS thread) when the visible side changes; true = showing back. */
+  onSideChange?: (isBack: boolean) => void;
 }
 
 export function CardFlip({
@@ -36,6 +38,7 @@ export function CardFlip({
   durationMs = 400,
   hapticEnabled = true,
   gesture = "both",
+  onSideChange,
 }: Props) {
   // 0 = front, 1 = back.
   const progress = useSharedValue(0);
@@ -44,12 +47,18 @@ export function CardFlip({
     if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [hapticEnabled]);
 
+  const notifySide = useCallback(
+    (isBack: boolean) => onSideChange?.(isBack),
+    [onSideChange],
+  );
+
   const toggle = useCallback(() => {
     "worklet";
     const next = progress.value < 0.5 ? 1 : 0;
     progress.value = withTiming(next, { duration: durationMs, easing: FLIP_EASING });
     runOnJS(fireHaptic)();
-  }, [durationMs, fireHaptic, progress]);
+    runOnJS(notifySide)(next === 1);
+  }, [durationMs, fireHaptic, notifySide, progress]);
 
   const tap = Gesture.Tap().onEnd(toggle);
   const swipe = Gesture.Fling()

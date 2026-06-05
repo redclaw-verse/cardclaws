@@ -5,7 +5,7 @@
 // Sizing: by default the card is a centered, rounded artifact. In `fullScreen`
 // mode it fills the entire device window (PRD §5.2 "Full-bleed always").
 
-import { useEffect } from "react";
+import { ReactNode, useEffect } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -25,12 +25,18 @@ export function CardViewer({
   card,
   profileUrl: profileUrlOverride,
   fullScreen = false,
+  onSideChange,
+  backContent,
 }: {
   card: CardDefinition;
   /** Override the QR target; defaults to the card's public profile URL. */
   profileUrl?: string;
   /** Fill the entire device window instead of a centered, rounded card. */
   fullScreen?: boolean;
+  /** Fired when the visible side changes; true = showing back. */
+  onSideChange?: (isBack: boolean) => void;
+  /** Custom back face (e.g. the structured back template); replaces card.back. */
+  backContent?: ReactNode;
 }) {
   // useWindowDimensions is the live size of the app's drawable area; it updates
   // on rotation/resize. Full-screen cards use it verbatim.
@@ -78,6 +84,7 @@ export function CardViewer({
           durationMs={card.settings.flipDurationMs}
           hapticEnabled={card.settings.hapticEnabled}
           gesture={card.settings.flipGesture}
+          onSideChange={onSideChange}
           front={
             <CardFace
               side={card.face}
@@ -88,13 +95,26 @@ export function CardViewer({
             />
           }
           back={
-            <CardFace
-              side={card.back}
-              width={cardWidth}
-              height={cardHeight}
-              borderRadius={radius}
-              profileUrl={profileUrl}
-            />
+            backContent ? (
+              <View
+                style={{
+                  width: cardWidth,
+                  height: cardHeight,
+                  borderRadius: radius,
+                  overflow: "hidden",
+                }}
+              >
+                {backContent}
+              </View>
+            ) : (
+              <CardFace
+                side={card.back}
+                width={cardWidth}
+                height={cardHeight}
+                borderRadius={radius}
+                profileUrl={profileUrl}
+              />
+            )
           }
         />
       </Animated.View>

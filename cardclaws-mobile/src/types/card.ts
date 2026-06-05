@@ -84,7 +84,7 @@ export interface GradientStop {
 }
 
 export interface BackgroundConfig {
-  type: "solid" | "gradient" | "image";
+  type: "solid" | "gradient" | "image" | "video";
   value?: string;
   r2Key?: string;
   stops?: GradientStop[];
