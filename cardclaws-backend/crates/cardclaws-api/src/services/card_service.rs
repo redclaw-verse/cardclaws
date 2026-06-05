@@ -57,6 +57,18 @@ fn ai_to_app(e: crate::ai::AiError) -> AppError {
     AppError::Internal(e.to_string())
 }
 
+/// List the "We Met" connections captured for a card the caller owns.
+pub async fn list_connections(
+    state: &AppState,
+    id: Uuid,
+    user_id: Uuid,
+) -> Result<Vec<cardclaws_db::models::connection::ConnectionRow>, AppError> {
+    get_owned(state, id, user_id).await?;
+    cardclaws_db::queries::connections::list_by_card(&state.db, id)
+        .await
+        .map_db()
+}
+
 pub async fn list(state: &AppState, user_id: Uuid) -> Result<Vec<CardRow>, AppError> {
     cards::list_by_owner(&state.db, user_id).await.map_db()
 }

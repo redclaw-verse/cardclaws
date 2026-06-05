@@ -77,6 +77,18 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
       )}
 
       <section class="block">
+        <h2>We met?</h2>
+        <p class="bio">Share your details so {name} remembers you.</p>
+        <form id="connect-form" class="contact-form">
+          <input name="name" placeholder="Your name" required />
+          <input name="email" type="email" placeholder="Your email (optional)" />
+          <input name="note" placeholder="Where/how we met (optional)" maxlength="200" />
+          <button type="submit">Connect</button>
+          <p id="connect-status" class="status"></p>
+        </form>
+      </section>
+
+      <section class="block">
         <h2>Get in touch</h2>
         <form id="contact-form" class="contact-form">
           <input name="name" placeholder="Your name" required />
@@ -251,6 +263,35 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
           }
         } catch {
           status.textContent = "Something went wrong. Try again later.";
+        }
+      });
+    </script>
+
+    <script define:vars={{ handle, apiBase: publicApiBase() }}>
+      const cform = document.getElementById("connect-form");
+      const cstatus = document.getElementById("connect-status");
+      cform?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = new FormData(cform);
+        cstatus.textContent = "Connecting…";
+        try {
+          const res = await fetch(`${apiBase}/v1/profile/${handle}/connect`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              name: data.get("name"),
+              email: data.get("email") || undefined,
+              note: data.get("note") || undefined,
+            }),
+          });
+          if (res.ok) {
+            cform.reset();
+            cstatus.textContent = "Connected — you're now in their contacts.";
+          } else {
+            cstatus.textContent = "Please check your details and try again.";
+          }
+        } catch {
+          cstatus.textContent = "Something went wrong. Try again later.";
         }
       });
     </script>

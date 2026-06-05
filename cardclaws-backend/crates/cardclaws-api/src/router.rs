@@ -66,6 +66,8 @@ pub fn build_router(state: AppState) -> Router {
         )
         .route("/analytics/event", post(analytics::ingest_event))
         .route("/cards/:id/welcome", post(cards::set_welcome))
+        .route("/cards/:id/connections", get(cards::list_connections))
+        .route("/profile/:handle/connect", post(profile::submit_connection))
         .route("/ai/refine", post(ai::refine))
         .route("/ai/image", post(ai::image))
         .route("/ai/video", post(ai::start_video))

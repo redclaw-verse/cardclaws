@@ -281,3 +281,69 @@ async fn welcome_requires_ownership() {
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn we_met_capture_and_owner_list() {
+    let app = require_app!();
+    let token = app.register_and_token().await;
+    let (id, handle) = create_card(&app, &token).await;
+    app.request(
+        "POST",
+        &format!("/v1/cards/{id}/publish"),
+        Some(&token),
+        None,
+    )
+    .await;
+
+    // A scanner shares back (public, unauthenticated).
+    let (s, _) = app
+        .request(
+            "POST",
+            &format!("/v1/profile/{handle}/connect"),
+            None,
+            Some(json!({ "name": "Dana Scanner", "email": "dana@example.com", "note": "met at SXSW" })),
+        )
+        .await;
+    assert_eq!(s, StatusCode::OK);
+
+    // The owner sees it in their connections.
+    let (s, body) = app
+        .request(
+            "GET",
+            &format!("/v1/cards/{id}/connections"),
+            Some(&token),
+            None,
+        )
+        .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(body[0]["name"], "Dana Scanner");
+    assert_eq!(body[0]["note"], "met at SXSW");
+
+    // Name is required.
+    let (s, _) = app
+        .request(
+            "POST",
+            &format!("/v1/profile/{handle}/connect"),
+            None,
+            Some(json!({ "name": "  " })),
+        )
+        .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn connections_list_is_owner_only() {
+    let app = require_app!();
+    let token = app.register_and_token().await;
+    let (id, _handle) = create_card(&app, &token).await;
+    let other = app.register_and_token().await;
+    let (status, _) = app
+        .request(
+            "GET",
+            &format!("/v1/cards/{id}/connections"),
+            Some(&other),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

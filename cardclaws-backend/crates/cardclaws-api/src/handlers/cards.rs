@@ -30,6 +30,17 @@ pub struct WelcomeRequest {
     pub mood: Option<String>,
 }
 
+/// List the "We Met" connections captured for a card (owner only).
+pub async fn list_connections(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Vec<cardclaws_db::models::connection::ConnectionRow>>> {
+    Ok(Json(
+        card_service::list_connections(&state, id, user.user_id).await?,
+    ))
+}
+
 /// Generate + attach an AI welcome (owner only). Shown when the QR is scanned.
 pub async fn set_welcome(
     State(state): State<AppState>,

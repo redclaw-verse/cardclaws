@@ -54,6 +54,73 @@ pub async fn submit_contact(
     Ok(())
 }
 
+/// "We Met": a scanner shares back; capture the connection (with coarse geo) for
+/// the card owner's "People I met" list, and email the owner. Rate-limited.
+pub async fn submit_connection(
+    state: &AppState,
+    handle: &str,
+    name: &str,
+    email: Option<&str>,
+    note: Option<&str>,
+    ip: Option<&str>,
+) -> Result<(), AppError> {
+    if name.trim().is_empty() {
+        return Err(AppError::Validation("name is required".into()));
+    }
+    if let Some(e) = email {
+        if !e.trim().is_empty() {
+            crate::validation::validate_email(e)?;
+        }
+    }
+
+    rate_limit::check(state.cache.as_ref(), &format!("connect:{handle}"), 5, 60).await?;
+
+    let card = card_service::get_public_by_handle(state, handle).await?;
+
+    // Resolve coarse geo, then drop the raw IP (PRD §18.3).
+    let geo = ip.map(|raw| state.geo.resolve(raw));
+    let country = geo.as_ref().and_then(|g| g.country.as_deref());
+    let city = geo.as_ref().and_then(|g| g.city.as_deref());
+
+    cardclaws_db::queries::connections::insert(
+        &state.db,
+        cardclaws_db::queries::connections::NewConnection {
+            card_id: card.id,
+            owner_id: card.owner_id,
+            name: name.trim(),
+            email: email.map(str::trim).filter(|e| !e.is_empty()),
+            note: note.map(str::trim).filter(|n| !n.is_empty()),
+            country,
+            city,
+        },
+    )
+    .await
+    .map_db()?;
+
+    // Notify the owner (best-effort).
+    if let Some(owner) = users::find_by_id(&state.db, card.owner_id).await.map_db()? {
+        let where_ = city
+            .map(|c| format!(" in {}", escape_html(c)))
+            .unwrap_or_default();
+        let note_html = note
+            .filter(|n| !n.trim().is_empty())
+            .map(|n| format!("<blockquote>{}</blockquote>", escape_html(n)))
+            .unwrap_or_default();
+        let html = format!(
+            "<p><strong>{}</strong> connected with you via CardClaws{}.</p>{}",
+            escape_html(name),
+            where_,
+            note_html,
+        );
+        let _ = state
+            .email
+            .send(&owner.email, "New CardClaws connection", &html)
+            .await;
+    }
+
+    Ok(())
+}
+
 /// Minimal HTML escaping so the visitor's text can't inject markup into the email.
 fn escape_html(s: &str) -> String {
     s.replace('&', "&amp;")

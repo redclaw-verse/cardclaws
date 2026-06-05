@@ -3,6 +3,7 @@
 
 pub mod analytics;
 pub mod cards;
+pub mod connections;
 pub mod export;
 pub mod sessions;
 pub mod share;

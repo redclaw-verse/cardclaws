@@ -3,6 +3,7 @@
 
 pub mod analytics;
 pub mod card;
+pub mod connection;
 pub mod session;
 pub mod share_link;
 pub mod team;
