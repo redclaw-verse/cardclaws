@@ -1,6 +1,6 @@
-// Gallery thumbnail. Photo cards show their image; video cards extract a few
-// frames and cycle them like a flipbook so they animate and stand out. Frames
-// are cached per video path so re-visiting the gallery is instant.
+// Gallery thumbnail. Photo cards show their image; video cards show a single
+// static poster frame (no animation — it flickered) plus a ▶ badge so they're
+// still easy to tell apart. Posters are cached per video path.
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as VideoThumbnails from "expo-video-thumbnails";
@@ -8,45 +8,36 @@ import { useEffect, useState } from "react";
 import { Image, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { LocalCard } from "../stores/localCardsStore";
 
-// Spread across the clip (not consecutive frames) so the flipbook shows motion.
-const FRAME_TIMES = [0, 1200, 2400, 3600];
-const FRAME_CACHE = new Map<string, string[]>();
+// A bit into the clip — the very first frame is often black.
+const POSTER_TIME = 500;
+const POSTER_CACHE = new Map<string, string>();
 
 export function CardThumb({ item, style }: { item: LocalCard; style: StyleProp<ViewStyle> }) {
   const video = item.videoPath;
-  const [frames, setFrames] = useState<string[]>(() => (video && FRAME_CACHE.get(video)) || []);
-  const [idx, setIdx] = useState(0);
+  const [poster, setPoster] = useState<string | null>(() => (video && POSTER_CACHE.get(video)) || null);
 
-  // Extract preview frames once per video.
   useEffect(() => {
     let cancelled = false;
-    if (!video || FRAME_CACHE.has(video)) return;
+    if (!video || POSTER_CACHE.has(video)) return;
     (async () => {
-      const out: string[] = [];
-      for (const time of FRAME_TIMES) {
-        try {
-          const { uri } = await VideoThumbnails.getThumbnailAsync(video, { time, quality: 0.6 });
-          out.push(uri);
-        } catch {
-          /* a frame failed to extract — skip it */
-        }
+      try {
+        const { uri } = await VideoThumbnails.getThumbnailAsync(video, {
+          time: POSTER_TIME,
+          quality: 0.7,
+        });
+        POSTER_CACHE.set(video, uri);
+        if (!cancelled) setPoster(uri);
+      } catch {
+        /* couldn't extract — fall back to the placeholder */
       }
-      if (out.length) FRAME_CACHE.set(video, out);
-      if (!cancelled && out.length) setFrames(out);
     })();
     return () => {
       cancelled = true;
     };
   }, [video]);
 
-  // Advance the flipbook.
-  useEffect(() => {
-    if (frames.length < 2) return;
-    const h = setInterval(() => setIdx((i) => (i + 1) % frames.length), 450);
-    return () => clearInterval(h);
-  }, [frames.length]);
-
-  const src = video && frames.length ? frames[idx] : item.imagePath || null;
+  const fallback = item.imagePath || null;
+  const src = video ? poster || fallback : fallback;
 
   return (
     <View style={style}>
