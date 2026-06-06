@@ -87,20 +87,7 @@ impl HttpBrainHubClient {
     }
 
     async fn get_json(&self, url: &str) -> Result<serde_json::Value, BrainHubError> {
-        let mut req = self.http.get(url);
-        if let Some(t) = &self.token {
-            req = req.bearer_auth(t);
-        }
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| BrainHubError::Http(e.to_string()))?;
-        if !resp.status().is_success() {
-            return Err(BrainHubError::Http(format!("status {}", resp.status())));
-        }
-        resp.json()
-            .await
-            .map_err(|e| BrainHubError::Parse(e.to_string()))
+        fetch_json(&self.http, &self.token, url).await
     }
 
     async fn list_owner(&self, owner: &str) -> Vec<BrainSummary> {
@@ -115,12 +102,51 @@ impl HttpBrainHubClient {
 #[async_trait]
 impl BrainHubClient for HttpBrainHubClient {
     async fn list_brains(&self) -> Result<Vec<BrainSummary>, BrainHubError> {
-        let mut out = self.list_owner(&self.owner).await;
+        let mut summaries = self.list_owner(&self.owner).await;
         for b in self.list_owner(REFERENCE_OWNER).await {
-            if !out.iter().any(|x| x.owner == b.owner && x.name == b.name) {
-                out.push(b);
+            if !summaries
+                .iter()
+                .any(|x| x.owner == b.owner && x.name == b.name)
+            {
+                summaries.push(b);
             }
         }
+
+        // Only surface brains we can actually turn into a card: pull each and
+        // keep the ones that parse from a JSON .brain with real content.
+        // HDF5-packed brains and server-erroring pulls are filtered out so the
+        // picker shows only what works. Pulls run concurrently.
+        let mut set = tokio::task::JoinSet::new();
+        for (i, s) in summaries.iter().enumerate() {
+            let http = self.http.clone();
+            let token = self.token.clone();
+            let url = format!(
+                "{}/brains/{}/{}/{}/pull",
+                self.base, s.owner, s.name, s.version
+            );
+            let (owner, name, version) = (s.owner.clone(), s.name.clone(), s.version.clone());
+            set.spawn(async move {
+                let usable = match fetch_json(&http, &token, &url).await {
+                    Ok(json) => {
+                        let b = parse_brain(&owner, &name, &version, &json);
+                        !b.skills.is_empty() || !b.tagline.is_empty() || !b.capabilities.is_empty()
+                    }
+                    Err(_) => false,
+                };
+                (i, usable)
+            });
+        }
+        let mut keep = vec![false; summaries.len()];
+        while let Some(res) = set.join_next().await {
+            if let Ok((i, usable)) = res {
+                keep[i] = usable;
+            }
+        }
+        let out = summaries
+            .into_iter()
+            .zip(keep)
+            .filter_map(|(s, k)| k.then_some(s))
+            .collect();
         Ok(out)
     }
 
@@ -134,6 +160,29 @@ impl BrainHubClient for HttpBrainHubClient {
         let json = self.get_json(&url).await?;
         Ok(parse_brain(owner, name, version, &json))
     }
+}
+
+/// GET a URL as JSON, with the optional Bearer token. Free fn so it can run in
+/// spawned (concurrent) tasks that can't borrow `&self`.
+async fn fetch_json(
+    http: &reqwest::Client,
+    token: &Option<String>,
+    url: &str,
+) -> Result<serde_json::Value, BrainHubError> {
+    let mut req = http.get(url);
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| BrainHubError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(BrainHubError::Http(format!("status {}", resp.status())));
+    }
+    resp.json()
+        .await
+        .map_err(|e| BrainHubError::Parse(e.to_string()))
 }
 
 /// Parse a `/brains/{owner}` list response into summaries (latest version each).
