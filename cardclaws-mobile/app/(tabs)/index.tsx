@@ -6,7 +6,7 @@ import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardThumb } from "../../src/components/CardThumb";
-import { LocalCard, useLocalCardsStore } from "../../src/stores/localCardsStore";
+import { cardsOfKind, LocalCard, useLocalCardsStore } from "../../src/stores/localCardsStore";
 
 type ViewMode = "grid" | "showcase";
 
@@ -20,7 +20,10 @@ function columnsFor(count: number): number {
 export default function Gallery() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const cards = useLocalCardsStore((s) => s.cards);
+  const cards = cardsOfKind(
+    useLocalCardsStore((s) => s.cards),
+    "business",
+  );
   const [view, setView] = useState<ViewMode>("grid");
   const columns = view === "showcase" ? 1 : columnsFor(cards.length);
 
@@ -44,11 +47,9 @@ export default function Gallery() {
           </View>
         }
         ListFooterComponent={
-          view === "showcase" && cards.length > 0 ? (
-            <Pressable style={styles.addTile} onPress={() => router.push("/demo")}>
-              <Text style={styles.addTileText}>+ New card</Text>
-            </Pressable>
-          ) : null
+          <Pressable style={styles.addTile} onPress={() => router.push("/demo")}>
+            <Text style={styles.addTileText}>+ New card</Text>
+          </Pressable>
         }
         renderItem={({ item }: { item: LocalCard }) =>
           view === "showcase" ? (
@@ -83,9 +84,6 @@ export default function Gallery() {
         }
       />
 
-      <Pressable style={[styles.fab, { bottom: insets.bottom + 80 }]} onPress={() => router.push("/demo")}>
-        <Text style={styles.fabText}>+ New card</Text>
-      </Pressable>
     </View>
   );
 }

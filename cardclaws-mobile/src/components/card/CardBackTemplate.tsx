@@ -4,7 +4,7 @@
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { CardLink, LinkKind } from "../../stores/localCardsStore";
+import { CardLink, LinkKind, Provenance } from "../../stores/localCardsStore";
 import { QRCodeView } from "./QRCodeView";
 
 const KIND_ICON: Record<LinkKind, keyof typeof MaterialCommunityIcons.glyphMap> = {
@@ -24,11 +24,13 @@ export function CardBackTemplate({
   title,
   profileUrl,
   links,
+  provenance,
 }: {
   name: string;
   title: string;
   profileUrl: string;
   links: CardLink[];
+  provenance?: Provenance;
 }) {
   // Only show links that actually have a URL (empty ones would be blank QRs).
   const shown = links.filter((l) => l.url.trim());
@@ -81,6 +83,15 @@ export function CardBackTemplate({
           <Text style={styles.empty}>Add links in the editor to show scannable codes here.</Text>
         )}
       </ScrollView>
+
+      {provenance && (
+        <View style={styles.provenance}>
+          <MaterialCommunityIcons name="link-variant" size={13} color="#30d158" />
+          <Text style={styles.provText} numberOfLines={1}>
+            Minted · #{provenance.tokenId} · {provenance.chain}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -117,4 +128,14 @@ const styles = StyleSheet.create({
   rowLabel: { color: "#f5f5f7", fontSize: 15, fontWeight: "700" },
   rowUrl: { color: "#8a8a90", fontSize: 12, marginTop: 1 },
   empty: { color: "#6b6b70", fontSize: 13, textAlign: "center", paddingVertical: 24 },
+  provenance: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#2a2a30",
+  },
+  provText: { color: "#9a9aa0", fontSize: 12 },
 });

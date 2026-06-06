@@ -18,13 +18,22 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AgentDetailsEditor } from "../src/components/AgentDetailsEditor";
+import { AgentBackTemplate } from "../src/components/card/AgentBackTemplate";
 import { CardBackTemplate } from "../src/components/card/CardBackTemplate";
 import { CardViewer } from "../src/components/card/CardViewer";
-import { defaultLinks, LinksEditor } from "../src/components/LinksEditor";
+import { defaultLinks } from "../src/components/LinksEditor";
 import { newLayerId } from "../src/stores/cardStore";
 import { useDraftStore } from "../src/stores/draftStore";
-import { CardLink, useLocalCardsStore } from "../src/stores/localCardsStore";
+import {
+  AgentMeta,
+  CardKind,
+  CardLink,
+  Provenance,
+  useLocalCardsStore,
+} from "../src/stores/localCardsStore";
 import { useProfileStore } from "../src/stores/profileStore";
+import { mintProvenance } from "../src/utils/provenance";
 import { CardDefinition, DEFAULT_SETTINGS, TextLayer } from "../src/types/card";
 import { deleteImage, persistImage, persistVideo } from "../src/utils/imageStore";
 
@@ -100,7 +109,7 @@ function buildDemoCard(
 
 export default function CardEditorScreen() {
   const router = useRouter();
-  const { cardId } = useLocalSearchParams<{ cardId?: string }>();
+  const { cardId, kind: kindParam } = useLocalSearchParams<{ cardId?: string; kind?: string }>();
   const upsert = useLocalCardsStore((s) => s.upsert);
   const remove = useLocalCardsStore((s) => s.remove);
   const getById = useLocalCardsStore((s) => s.getById);
@@ -118,6 +127,14 @@ export default function CardEditorScreen() {
   const [links, setLinks] = useState<CardLink[]>(() =>
     cardId ? [] : profile.socialLinks.length > 0 ? profile.socialLinks : defaultLinks(),
   );
+  const [cardKind, setCardKind] = useState<CardKind>(() => (kindParam as CardKind) || "business");
+  const [agentMeta, setAgentMeta] = useState<AgentMeta>(() => ({
+    tagline: "",
+    skills: [],
+    tools: [],
+    capabilities: [],
+  }));
+  const [provenance, setProvenance] = useState<Provenance | undefined>(undefined);
   const [showing, setShowing] = useState(false);
   const [onBack, setOnBack] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -133,6 +150,9 @@ export default function CardEditorScreen() {
       setTitle(existing.title);
       setUrl(existing.url);
       setLinks(existing.links ?? []);
+      setCardKind(existing.kind ?? "business");
+      setProvenance(existing.provenance);
+      if (existing.agent) setAgentMeta(existing.agent);
       setOnBack(false);
       setShowing(true);
     }
@@ -189,17 +209,28 @@ export default function CardEditorScreen() {
     const existing = getById(id);
     const imagePath = imageUri ? await persistImage(imageUri, id) : (existing?.imagePath ?? "");
     const videoPath = videoUri ? await persistVideo(videoUri, id) : undefined;
+    // Collectibles are "minted" (provenance recorded, mapped to the creator) on
+    // acceptance — once; agents carry their flip-side metadata.
+    const prov =
+      cardKind === "collectible"
+        ? (existing?.provenance ?? mintProvenance(profile.displayName || name))
+        : undefined;
+    const agent = cardKind === "agent" ? agentMeta : undefined;
     upsert({
       id,
       name,
       title,
       url,
+      kind: cardKind,
       imagePath,
       videoPath,
       links,
       publishedUrl: existing?.publishedUrl,
+      provenance: prov,
+      agent,
       updatedAt: Date.now(),
     });
+    setProvenance(prov);
     if (imageUri) setImageUri(imagePath);
     if (videoPath) setVideoUri(videoPath);
   };
@@ -247,7 +278,17 @@ export default function CardEditorScreen() {
           fullScreen
           onSideChange={setOnBack}
           backContent={
-            <CardBackTemplate name={name} title={title} profileUrl={url} links={links} />
+            cardKind === "agent" ? (
+              <AgentBackTemplate name={name} title={title} agent={agentMeta} />
+            ) : (
+              <CardBackTemplate
+                name={name}
+                title={title}
+                profileUrl={url}
+                links={links}
+                provenance={cardKind === "collectible" ? provenance : undefined}
+              />
+            )
           }
         />
         {/* Front: a hint to flip. Back (QR side): the Gallery / Edit controls. */}
@@ -270,7 +311,16 @@ export default function CardEditorScreen() {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <Stack.Screen
-        options={{ title: cardId ? "Edit card" : "Make your card", headerTitleAlign: "center" }}
+        options={{
+          title: cardId
+            ? "Edit card"
+            : cardKind === "collectible"
+              ? "New collectible"
+              : cardKind === "agent"
+                ? "New agent"
+                : "Make your card",
+          headerTitleAlign: "center",
+        }}
       />
 
       {videoUri ? (
@@ -309,6 +359,13 @@ export default function CardEditorScreen() {
           <Text style={styles.photoText}>AI video</Text>
         </Pressable>
       </View>
+
+      {cardKind === "agent" && (
+        <>
+          <Text style={styles.sectionLabel}>Agent details · shown on the flip side</Text>
+          <AgentDetailsEditor meta={agentMeta} onChange={setAgentMeta} />
+        </>
+      )}
 
       <Pressable
         style={[styles.cta, (!media || saving) && styles.ctaDisabled]}

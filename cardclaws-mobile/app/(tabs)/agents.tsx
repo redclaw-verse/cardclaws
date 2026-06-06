@@ -1,27 +1,15 @@
-// Work-agent cards — AI agents attached to your cards. None yet; this is their
-// home.
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+// Agents: cards for your AI assistants. Front is an AI-generated portrait; the
+// flip side shows skill bars, tools, and special capabilities.
+import { CardCollection } from "../../src/components/CardCollection";
 
 export default function Agents() {
-  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.center}>
-        <MaterialCommunityIcons name="robot" size={48} color="#3a3a44" />
-        <Text style={styles.title}>No agent cards yet</Text>
-        <Text style={styles.hint}>
-          Cards backed by an AI work agent will appear here.
-        </Text>
-      </View>
-    </View>
+    <CardCollection
+      kind="agent"
+      heading="Agents"
+      addLabel="+ New agent"
+      emptyTitle="No agent cards yet"
+      emptyHint="Generate a portrait of your assistant; flip it for skills & tools."
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0c" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 10 },
-  title: { color: "#f5f5f7", fontSize: 20, fontWeight: "700" },
-  hint: { color: "#6b6b70", fontSize: 14, textAlign: "center", lineHeight: 20 },
-});
