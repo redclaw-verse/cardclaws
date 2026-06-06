@@ -1,8 +1,9 @@
-// Gallery of cards saved on this device (standalone demo). Tap a card to view /
-// edit it, or create a new one. Falls back to a welcome state when empty.
+// Gallery of cards saved on this device (standalone demo). Clean, chrome-free:
+// just the cards, auto-arranging by count, plus a New-card button.
 
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardThumb } from "../src/components/CardThumb";
 import { LocalCard, useLocalCardsStore } from "../src/stores/localCardsStore";
 
@@ -16,17 +17,13 @@ function columnsFor(count: number): number {
 
 export default function Gallery() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const cards = useLocalCardsStore((s) => s.cards);
   const columns = columnsFor(cards.length);
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Your cards</Text>
-        <Pressable onPress={() => router.push("/(auth)/login")}>
-          <Text style={styles.signin}>Sign in</Text>
-        </Pressable>
-      </View>
+      <Stack.Screen options={{ headerShown: false }} />
 
       <FlatList
         data={cards}
@@ -35,7 +32,7 @@ export default function Gallery() {
         key={`cols-${columns}`}
         numColumns={columns}
         columnWrapperStyle={cards.length > 0 ? styles.column : undefined}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingTop: insets.top + 12 }]}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No cards yet</Text>
@@ -68,16 +65,6 @@ export default function Gallery() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0a0a0c" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 64,
-    paddingBottom: 12,
-  },
-  title: { color: "#f5f5f7", fontSize: 30, fontWeight: "800" },
-  signin: { color: "#9a9aa0", fontSize: 15 },
   list: { paddingHorizontal: 16, paddingBottom: 110, flexGrow: 1 },
   column: { gap: 12 },
   tile: { flex: 1, marginBottom: 12, borderRadius: 18, overflow: "hidden", backgroundColor: "#15151a" },
