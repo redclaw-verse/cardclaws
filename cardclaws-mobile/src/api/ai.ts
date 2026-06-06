@@ -3,10 +3,19 @@
 
 import { api } from "./client";
 
+export interface Persona {
+  role?: string;
+  vibe?: string;
+  colors?: string[];
+  goal?: string;
+}
+
 export interface SceneBrief {
   scene: string;
   style?: string;
   mood?: string;
+  /** User persona (from their profile) to tailor the result. */
+  persona?: Persona;
 }
 
 /** Refine the rough fields into a single vivid prompt (Gemini text). */

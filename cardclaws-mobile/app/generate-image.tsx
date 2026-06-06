@@ -17,6 +17,8 @@ import {
 import { generateImage, refineScene } from "../src/api/ai";
 import { Chips, wizardInputStyle } from "../src/components/genwizard/Wizard";
 import { useDraftStore } from "../src/stores/draftStore";
+import { buildPersona } from "../src/stores/profileLogic";
+import { useProfileStore } from "../src/stores/profileStore";
 
 const STYLES = ["Cinematic", "Minimal", "Neon", "Studio portrait", "Nature", "Abstract"];
 const MOODS = ["Bold", "Calm", "Luxe", "Playful", "Dark"];
@@ -24,6 +26,7 @@ const MOODS = ["Bold", "Calm", "Luxe", "Playful", "Dark"];
 export default function GenerateImage() {
   const router = useRouter();
   const setPendingImageUri = useDraftStore((s) => s.setPendingImageUri);
+  const profile = useProfileStore((s) => s.profile);
   const [scene, setScene] = useState("");
   const [style, setStyle] = useState("");
   const [mood, setMood] = useState("");
@@ -40,6 +43,7 @@ export default function GenerateImage() {
         scene,
         style: style || undefined,
         mood: mood || undefined,
+        persona: buildPersona(profile),
       });
       const img = await generateImage(prompt);
       const path = `${FileSystem.cacheDirectory}ai-${Date.now()}.png`;

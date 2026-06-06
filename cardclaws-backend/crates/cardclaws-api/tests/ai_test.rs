@@ -23,6 +23,25 @@ async fn refine_returns_a_prompt() {
 }
 
 #[tokio::test]
+async fn refine_includes_persona() {
+    let app = require_app!();
+    let (status, body) = app
+        .request(
+            "POST",
+            "/v1/ai/refine",
+            None,
+            Some(json!({
+                "scene": "a calm forest at dawn",
+                "persona": { "role": "Founder", "vibe": "Cinematic, Luxe", "colors": ["#ff3b30"], "goal": "networking" }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    // FakeAiClient echoes the persona role into the refined prompt.
+    assert!(body["prompt"].as_str().unwrap().contains("Founder"));
+}
+
+#[tokio::test]
 async fn refine_requires_a_scene() {
     let app = require_app!();
     let (status, body) = app

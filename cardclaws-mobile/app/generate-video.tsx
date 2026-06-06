@@ -17,6 +17,8 @@ import {
 import { pollVideo, startVideo } from "../src/api/ai";
 import { Chips, wizardInputStyle } from "../src/components/genwizard/Wizard";
 import { useDraftStore } from "../src/stores/draftStore";
+import { buildPersona } from "../src/stores/profileLogic";
+import { useProfileStore } from "../src/stores/profileStore";
 
 const MOTION = ["Parallax", "Particles", "Slow zoom", "Liquid", "Aurora", "Glitch"];
 const LENGTH = ["3 seconds", "5 seconds", "8 seconds"];
@@ -26,6 +28,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export default function GenerateVideo() {
   const router = useRouter();
   const setPendingVideoUri = useDraftStore((s) => s.setPendingVideoUri);
+  const profile = useProfileStore((s) => s.profile);
   const [concept, setConcept] = useState("");
   const [motion, setMotion] = useState("");
   const [length, setLength] = useState("");
@@ -38,7 +41,11 @@ export default function GenerateVideo() {
     }
     const m = motion ? `${motion.toLowerCase()} ` : "";
     const len = length ? ` (${length})` : "";
-    const prompt = `A ${m}motion clip for a digital business card: ${concept}${len}.`
+    const persona = buildPersona(profile);
+    const personaPrefix = persona
+      ? `For a ${persona.role ?? "professional"}${persona.vibe ? ` (${persona.vibe} aesthetic)` : ""}: `
+      : "";
+    const prompt = `${personaPrefix}A ${m}motion clip for a digital business card: ${concept}${len}.`
       .replace(/\s+/g, " ")
       .trim();
 

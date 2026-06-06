@@ -8,7 +8,7 @@
 //! Behind an [`AiClient`] trait so handlers/tests don't depend on the network.
 
 use async_trait::async_trait;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 const GEMINI_BASE: &str = "https://generativelanguage.googleapis.com/v1beta";
 const TEXT_MODEL: &str = "gemini-2.5-flash";
@@ -25,12 +25,23 @@ pub enum AiError {
     Empty(&'static str),
 }
 
+/// The user's persona (from their onboarding profile) used to tailor generation.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Persona {
+    pub role: Option<String>,
+    pub vibe: Option<String>,
+    pub colors: Option<Vec<String>>,
+    pub goal: Option<String>,
+}
+
 /// Rough fields collected by the "Describe your scene" wizard.
 #[derive(Debug, Clone, Serialize)]
 pub struct SceneBrief {
     pub scene: String,
     pub style: Option<String>,
     pub mood: Option<String>,
+    pub persona: Option<Persona>,
 }
 
 /// A generated image as base64 plus its MIME type.
@@ -109,10 +120,11 @@ impl AiClient for GeminiClient {
         let instruction = format!(
             "You are helping design a digital business card image. Turn the \
              following into ONE vivid, concrete image-generation prompt (2-3 \
-             sentences, no preamble, no quotes).\nScene: {}\nStyle: {}\nMood: {}",
+             sentences, no preamble, no quotes).\nScene: {}\nStyle: {}\nMood: {}{}",
             brief.scene,
             brief.style.as_deref().unwrap_or("(any)"),
             brief.mood.as_deref().unwrap_or("(any)"),
+            persona_clause(brief.persona.as_ref()),
         );
         let json = self.generate_content(TEXT_MODEL, &instruction).await?;
         first_text(&json).ok_or(AiError::Empty("text"))
@@ -192,6 +204,22 @@ impl AiClient for GeminiClient {
     }
 }
 
+/// Build the persona suffix for the refine instruction (empty when no persona).
+fn persona_clause(persona: Option<&Persona>) -> String {
+    match persona {
+        None => String::new(),
+        Some(p) => format!(
+            "\nPersona (bias the image to fit this person): role={}; aesthetic vibe={}; \
+             brand colors={}; goal={}. Weave the brand colors and vibe into the composition; \
+             do not render any text.",
+            p.role.as_deref().unwrap_or("(any)"),
+            p.vibe.as_deref().unwrap_or("(any)"),
+            p.colors.as_ref().map(|c| c.join(", ")).unwrap_or_default(),
+            p.goal.as_deref().unwrap_or("(any)"),
+        ),
+    }
+}
+
 /// Extract the first text part from a generateContent response.
 fn first_text(json: &serde_json::Value) -> Option<String> {
     json["candidates"][0]["content"]["parts"]
@@ -246,10 +274,16 @@ const PIXEL_PNG_B64: &str =
 #[async_trait]
 impl AiClient for FakeAiClient {
     async fn refine_prompt(&self, brief: &SceneBrief) -> Result<String, AiError> {
+        let role = brief
+            .persona
+            .as_ref()
+            .and_then(|p| p.role.as_deref())
+            .unwrap_or("");
         Ok(format!(
-            "A {} {} scene: {}",
+            "A {} {} scene for {}: {}",
             brief.mood.as_deref().unwrap_or("striking"),
             brief.style.as_deref().unwrap_or("cinematic"),
+            role,
             brief.scene,
         ))
     }

@@ -17,8 +17,9 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: "#0a0a0c" },
           }}
         >
-          {/* The tab bar owns its own chrome; no stack header above it. */}
+          {/* The tab bar + onboarding own their own chrome; no stack header. */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         </Stack>
       </QueryClientProvider>
     </GestureHandlerRootView>

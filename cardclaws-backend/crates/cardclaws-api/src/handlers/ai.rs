@@ -10,7 +10,7 @@ use base64::Engine;
 use cardclaws_types::AppError;
 use serde::{Deserialize, Serialize};
 
-use crate::ai::{AiError, SceneBrief, VideoStatus};
+use crate::ai::{AiError, Persona, SceneBrief, VideoStatus};
 use crate::error::ApiResult;
 use crate::handlers::analytics::client_ip;
 use crate::middleware::rate_limit;
@@ -23,6 +23,8 @@ pub struct RefineRequest {
     pub style: Option<String>,
     #[serde(default)]
     pub mood: Option<String>,
+    #[serde(default)]
+    pub persona: Option<Persona>,
 }
 
 #[derive(Serialize)]
@@ -63,6 +65,7 @@ pub async fn refine(
         scene: req.scene,
         style: req.style,
         mood: req.mood,
+        persona: req.persona,
     };
     let prompt = state.ai.refine_prompt(&brief).await.map_err(map_ai_err)?;
     Ok(Json(RefineResponse { prompt }))

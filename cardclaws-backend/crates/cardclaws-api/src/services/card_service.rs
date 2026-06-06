@@ -41,6 +41,7 @@ pub async fn set_welcome(
         scene: prompt.to_string(),
         style: style.map(str::to_string),
         mood: mood.map(str::to_string),
+        persona: None,
     };
     let refined = state.ai.refine_prompt(&brief).await.map_err(ai_to_app)?;
     let img = state.ai.generate_image(&refined).await.map_err(ai_to_app)?;

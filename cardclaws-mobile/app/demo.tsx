@@ -24,6 +24,7 @@ import { defaultLinks, LinksEditor } from "../src/components/LinksEditor";
 import { newLayerId } from "../src/stores/cardStore";
 import { useDraftStore } from "../src/stores/draftStore";
 import { CardLink, useLocalCardsStore } from "../src/stores/localCardsStore";
+import { useProfileStore } from "../src/stores/profileStore";
 import { CardDefinition, DEFAULT_SETTINGS, TextLayer } from "../src/types/card";
 import { deleteImage, persistImage, persistVideo } from "../src/utils/imageStore";
 
@@ -105,13 +106,18 @@ export default function CardEditorScreen() {
   const getById = useLocalCardsStore((s) => s.getById);
 
   // A stable id for the lifetime of this editor (new card or the one we're editing).
+  // New cards prefill from the user's profile (so there's no data entry); the
+  // edit path (cardId) overrides these in the effect below.
+  const profile = useProfileStore((s) => s.profile);
   const [id] = useState(() => cardId ?? newLayerId());
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [videoUri, setVideoUri] = useState<string | null>(null);
-  const [name, setName] = useState("Omar Sobh");
-  const [title, setTitle] = useState("Founder & CEO");
-  const [url, setUrl] = useState("https://cardclaws.com/omar");
-  const [links, setLinks] = useState<CardLink[]>(() => defaultLinks());
+  const [name, setName] = useState(() => (cardId ? "" : profile.displayName));
+  const [title, setTitle] = useState(() => (cardId ? "" : profile.title));
+  const [url, setUrl] = useState("");
+  const [links, setLinks] = useState<CardLink[]>(() =>
+    cardId ? [] : profile.socialLinks.length > 0 ? profile.socialLinks : defaultLinks(),
+  );
   const [showing, setShowing] = useState(false);
   const [onBack, setOnBack] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -303,6 +309,7 @@ export default function CardEditorScreen() {
         </Pressable>
       </View>
 
+      <Text style={styles.sectionLabel}>Details · prefilled from your profile</Text>
       <Field label="Name" value={name} onChangeText={setName} />
       <Field label="Title" value={title} onChangeText={setTitle} />
       <Field label="QR link" value={url} onChangeText={setUrl} autoCapitalize="none" />

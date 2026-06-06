@@ -39,6 +39,30 @@ export function Chips({
   );
 }
 
+/** Multi-select chip row (sibling of Chips; same styling). */
+export function MultiChips({
+  options,
+  values,
+  onToggle,
+}: {
+  options: string[];
+  values: string[];
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <View style={styles.chips}>
+      {options.map((o) => {
+        const on = values.includes(o);
+        return (
+          <Pressable key={o} onPress={() => onToggle(o)} style={[styles.chip, on && styles.chipOn]}>
+            <Text style={[styles.chipText, on && styles.chipTextOn]}>{o}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function Wizard({
   title,
   steps,
