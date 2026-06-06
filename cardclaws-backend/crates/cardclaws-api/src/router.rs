@@ -69,7 +69,11 @@ pub fn build_router(state: AppState) -> Router {
         .route("/cards/:id/welcome", post(cards::set_welcome))
         .route("/cards/:id/connections", get(cards::list_connections))
         .route("/profile/:handle/connect", post(profile::submit_connection))
-        .route("/demo/publish", post(demo::publish))
+        .route(
+            "/demo/publish",
+            // The front photo is sent as base64, so allow a larger body here.
+            post(demo::publish).layer(axum::extract::DefaultBodyLimit::max(12 * 1024 * 1024)),
+        )
         .route("/ai/refine", post(ai::refine))
         .route("/ai/image", post(ai::image))
         .route("/ai/video", post(ai::start_video))

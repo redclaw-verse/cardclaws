@@ -2,6 +2,7 @@
 // welcome shown when the QR is scanned. Returns a real cardclaws.com/<handle>
 // URL and points the card's QR at it.
 
+import * as FileSystem from "expo-file-system";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -32,6 +33,7 @@ export default function PublishScreen() {
   const [payloadLabel, setPayloadLabel] = useState("");
   const [payloadValue, setPayloadValue] = useState("");
   const [now, setNow] = useState("");
+  const [event, setEvent] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(card?.publishedUrl ?? null);
 
@@ -47,9 +49,24 @@ export default function PublishScreen() {
   const publish = async () => {
     setBusy(true);
     try {
+      // Upload the card's front photo so the web hero shows the real card.
+      let frontImageBase64: string | undefined;
+      let frontImageMime: string | undefined;
+      if (card.imagePath) {
+        try {
+          frontImageBase64 = await FileSystem.readAsStringAsync(card.imagePath, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          frontImageMime = card.imagePath.endsWith(".png") ? "image/png" : "image/jpeg";
+        } catch {
+          /* no readable photo — publish without it */
+        }
+      }
       const { profileUrl } = await publishToWeb({
         name: card.name,
         title: card.title || undefined,
+        frontImageBase64,
+        frontImageMime,
         links: card.links.filter((l) => l.url.trim()).map((l) => ({ label: l.label, url: l.url })),
         welcomePrompt: welcomePrompt.trim() || undefined,
         welcomeMessage: welcomePrompt.trim() ? welcomeMessage : undefined,
@@ -58,6 +75,7 @@ export default function PublishScreen() {
             ? { kind: payloadKind, label: payloadLabel.trim(), value: payloadValue.trim() }
             : undefined,
         now: now.trim() || undefined,
+        event: event.trim() || undefined,
       });
       // Point the card's QR at the real profile + remember it.
       upsert({ ...card, url: profileUrl, publishedUrl: profileUrl, updatedAt: Date.now() });
@@ -102,6 +120,16 @@ export default function PublishScreen() {
           />
         </>
       )}
+
+      <Text style={styles.label}>Event (optional)</Text>
+      <TextInput
+        style={styles.input}
+        editable={!busy}
+        placeholder="e.g. SXSW 2026"
+        placeholderTextColor="#6b6b70"
+        value={event}
+        onChangeText={setEvent}
+      />
 
       <Text style={styles.label}>Now — what you’re up to (optional)</Text>
       <TextInput

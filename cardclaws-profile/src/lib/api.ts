@@ -45,6 +45,8 @@ export interface ProfileData {
   payload?: { kind: "link" | "code"; label: string; value: string };
   /** "Now" status — what the person is currently up to. */
   now?: string;
+  /** Event context shown as a banner. */
+  event?: string;
 }
 
 export interface CardSide {

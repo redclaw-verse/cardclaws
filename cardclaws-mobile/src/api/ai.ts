@@ -58,6 +58,9 @@ export interface PublishPayload {
   welcomeMessage?: string;
   payload?: { kind: "link" | "code"; label: string; value: string };
   now?: string;
+  event?: string;
+  frontImageBase64?: string;
+  frontImageMime?: string;
 }
 
 /** Publish a demo card to the web (no auth) → a real, scannable profile URL. */

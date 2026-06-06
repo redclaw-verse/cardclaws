@@ -3,6 +3,7 @@
 //! Each publish creates a fresh password-less owner so the profile shows the
 //! right name and stays within the free-tier 1-card limit.
 
+use base64::Engine;
 use cardclaws_db::queries::users;
 use cardclaws_types::{AppError, Tier};
 use serde::Deserialize;
@@ -44,6 +45,14 @@ pub struct DemoPublishRequest {
     /// "Now" status — what the person is currently up to.
     #[serde(default)]
     pub now: Option<String>,
+    /// Event context shown as a banner ("📍 met at …").
+    #[serde(default)]
+    pub event: Option<String>,
+    /// The card's front photo (base64), shown as the web hero.
+    #[serde(default)]
+    pub front_image_base64: Option<String>,
+    #[serde(default)]
+    pub front_image_mime: Option<String>,
 }
 
 pub struct Published {
@@ -63,6 +72,26 @@ pub async fn publish(state: &AppState, req: &DemoPublishRequest) -> Result<Publi
         .take(10)
         .collect();
     let card_handle = format!("{}-{}", slugify(&req.name), &suffix[..6]);
+
+    // Upload the card's front photo (if any) so the web hero shows the real card.
+    let mut face_background = serde_json::json!({ "type": "solid", "value": "#101014" });
+    if let Some(b64) = req.front_image_base64.as_deref() {
+        if !b64.trim().is_empty() {
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(b64.trim().as_bytes())
+                .map_err(|e| AppError::Internal(format!("decode front image: {e}")))?;
+            let mime = req.front_image_mime.as_deref().unwrap_or("image/jpeg");
+            let ext = if mime.contains("png") { "png" } else { "jpg" };
+            let key = format!("front/{suffix}.{ext}");
+            state
+                .assets
+                .put_object(&key, bytes, mime)
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+            face_background =
+                serde_json::json!({ "type": "image", "value": state.assets.public_url(&key) });
+        }
+    }
 
     // Fresh password-less owner so the profile shows this person's name.
     let user = users::insert(
@@ -98,8 +127,13 @@ pub async fn publish(state: &AppState, req: &DemoPublishRequest) -> Result<Publi
             profile["now"] = serde_json::json!(now.trim());
         }
     }
+    if let Some(event) = req.event.as_deref() {
+        if !event.trim().is_empty() {
+            profile["event"] = serde_json::json!(event.trim());
+        }
+    }
     let definition = serde_json::json!({
-        "face": { "layers": [], "background": { "type": "solid", "value": "#101014" } },
+        "face": { "layers": [], "background": face_background },
         "back": {
             "layers": [{
                 "id": Uuid::new_v4(),
