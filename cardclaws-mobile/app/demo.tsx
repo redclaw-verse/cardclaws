@@ -269,8 +269,9 @@ export default function CardEditorScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: cardId ? "Edit card" : "New card" }} />
-      <Text style={styles.h1}>{cardId ? "Edit your card" : "Make your card"}</Text>
+      <Stack.Screen
+        options={{ title: cardId ? "Edit card" : "Make your card", headerTitleAlign: "center" }}
+      />
 
       {videoUri ? (
         <Video
@@ -309,29 +310,12 @@ export default function CardEditorScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.sectionLabel}>Details · prefilled from your profile</Text>
-      <Field label="Name" value={name} onChangeText={setName} />
-      <Field label="Title" value={title} onChangeText={setTitle} />
-      <Field label="QR link" value={url} onChangeText={setUrl} autoCapitalize="none" />
-
-      <Text style={styles.sectionLabel}>Back of card · scannable links</Text>
-      <LinksEditor links={links} onChange={setLinks} />
-
       <Pressable
         style={[styles.cta, (!media || saving) && styles.ctaDisabled]}
         disabled={!media || saving}
         onPress={save}
       >
         {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Save card</Text>}
-      </Pressable>
-
-      <Pressable
-        style={[styles.publishBtn, saving && styles.ctaDisabled]}
-        disabled={saving}
-        onPress={goPublish}
-      >
-        <MaterialCommunityIcons name="web" size={20} color="#f5f5f7" />
-        <Text style={styles.photoText}>Publish to web · AI welcome</Text>
       </Pressable>
 
       {cardId && (

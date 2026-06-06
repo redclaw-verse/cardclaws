@@ -12,18 +12,18 @@ const storage = new MMKV({ id: "cardclaws-profile" });
 interface ProfileState {
   onboarded: boolean;
   profile: Profile;
-  hydrated: boolean;
   setProfile: (patch: Partial<Profile>) => void;
   completeOnboarding: (p: Profile) => void;
   reset: () => void;
 }
 
+// MMKV via createJSONStorage hydrates synchronously, so `onboarded` is correct
+// on the first render — no async hydration flag needed (matches localCardsStore).
 export const useProfileStore = create<ProfileState>()(
   persist(
     (set) => ({
       onboarded: false,
       profile: EMPTY_PROFILE,
-      hydrated: false,
       setProfile: (patch) => set((s) => ({ profile: { ...s.profile, ...patch } })),
       completeOnboarding: (p) => set({ profile: p, onboarded: true }),
       reset: () => set({ profile: EMPTY_PROFILE, onboarded: false }),
@@ -36,9 +36,6 @@ export const useProfileStore = create<ProfileState>()(
         removeItem: (k) => storage.delete(k),
       })),
       partialize: (s) => ({ onboarded: s.onboarded, profile: s.profile }),
-      onRehydrateStorage: () => () => {
-        useProfileStore.setState({ hydrated: true });
-      },
     },
   ),
 );

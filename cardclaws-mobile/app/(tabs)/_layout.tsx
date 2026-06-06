@@ -19,12 +19,10 @@ function tabIcon(name: IconName) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const hydrated = useProfileStore((s) => s.hydrated);
   const onboarded = useProfileStore((s) => s.onboarded);
 
-  // Wait for MMKV to rehydrate before deciding, then send first-run users to
-  // onboarding (avoids a flash of the tabs).
-  if (!hydrated) return null;
+  // First-run users go to onboarding (MMKV hydrates synchronously, so this is
+  // correct on the first render — no flash).
   if (!onboarded) return <Redirect href="/onboarding" />;
 
   return (
@@ -38,11 +36,10 @@ export default function TabsLayout() {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: "#1c1c22",
           height: 64 + insets.bottom,
-          paddingTop: 10,
-          paddingBottom: Math.max(insets.bottom, 14),
+          paddingTop: 8,
+          paddingBottom: insets.bottom + 10,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginBottom: 2 },
-        tabBarItemStyle: { paddingVertical: 4 },
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Cards", tabBarIcon: tabIcon("bag-personal") }} />
