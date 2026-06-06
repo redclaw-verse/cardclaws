@@ -20,6 +20,8 @@ export interface AgentBrain {
   skills: string[];
   tools: string[];
   capabilities: string[];
+  /** Public ClawBrainHub URL to access this brain (shareable via QR). */
+  resourceUrl: string;
 }
 
 export async function listBrains(): Promise<BrainSummary[]> {

@@ -193,6 +193,7 @@ export default function CardEditorScreen() {
           skills: b.skills.map((s) => ({ name: s, level: 4 })),
           tools: b.tools,
           capabilities: b.capabilities,
+          brainUrl: b.resourceUrl,
         });
         setShowing(false);
         draft.setPendingAgentBrain(null);

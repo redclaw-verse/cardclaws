@@ -42,6 +42,8 @@ export interface AgentMeta {
   skills: AgentSkill[];
   tools: string[];
   capabilities: string[];
+  /** ClawBrainHub URL to access the brain (shared via the flip-side QR). */
+  brainUrl?: string;
 }
 
 export interface LocalCard {

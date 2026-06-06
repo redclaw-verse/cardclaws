@@ -10,6 +10,8 @@ const DEFAULT_BASE: &str = "https://clawbrainhub.com/api/v1";
 /// Reference brains the registry always ships — handy picks even when the user
 /// hasn't published their own yet.
 const REFERENCE_OWNER: &str = "redclawsystems";
+/// Public web base for a shareable brain link.
+const WEB_BASE: &str = "https://clawbrainhub.com/brains";
 
 /// A brain as shown in the picker list.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -34,6 +36,8 @@ pub struct AgentBrain {
     pub skills: Vec<String>,
     pub tools: Vec<String>,
     pub capabilities: Vec<String>,
+    /// Public ClawBrainHub URL to access this brain (shareable via QR).
+    pub resource_url: String,
 }
 
 #[derive(Debug)]
@@ -226,6 +230,7 @@ fn parse_brain(owner: &str, name: &str, version: &str, json: &serde_json::Value)
         skills,
         tools,
         capabilities,
+        resource_url: format!("{WEB_BASE}/{owner}/{name}"),
     }
 }
 
@@ -311,6 +316,7 @@ impl BrainHubClient for FakeBrainHubClient {
             skills: vec!["Web Search".into(), "Code".into()],
             tools: vec![],
             capabilities: vec!["Writing".into(), "Analysis".into()],
+            resource_url: format!("{WEB_BASE}/{owner}/{name}"),
         })
     }
 }

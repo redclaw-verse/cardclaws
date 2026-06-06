@@ -2,8 +2,10 @@
 // skill bars, tools, and special capabilities (trading-card style).
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { AgentMeta } from "../../stores/localCardsStore";
+import { QRCodeView } from "./QRCodeView";
 
 export function AgentBackTemplate({
   name,
@@ -14,6 +16,7 @@ export function AgentBackTemplate({
   title: string;
   agent: AgentMeta;
 }) {
+  const [showQr, setShowQr] = useState(false);
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -72,6 +75,33 @@ export function AgentBackTemplate({
             ))}
           </>
         )}
+
+        {!!agent.brainUrl && (
+          <View style={styles.shareBlock}>
+            <Pressable style={styles.shareRow} onPress={() => setShowQr((v) => !v)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.section}>Share brain link</Text>
+                <Text style={styles.shareHint}>QR to access this brain on ClawBrainHub</Text>
+              </View>
+              <Switch
+                value={showQr}
+                onValueChange={setShowQr}
+                trackColor={{ true: "#ff3b30", false: "#3a3a44" }}
+                thumbColor="#ffffff"
+              />
+            </Pressable>
+            {showQr && (
+              <View style={styles.qrWrap}>
+                <View style={styles.qrCard}>
+                  <QRCodeView value={agent.brainUrl} size={150} />
+                </View>
+                <Text style={styles.qrUrl} numberOfLines={1}>
+                  {agent.brainUrl}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -110,4 +140,16 @@ const styles = StyleSheet.create({
   chipText: { color: "#f5f5f7", fontSize: 13, fontWeight: "600" },
   capRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   capText: { color: "#e0e0e4", fontSize: 14, flex: 1 },
+  shareBlock: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#2a2a30",
+  },
+  shareRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  shareHint: { color: "#9a9aa0", fontSize: 12, marginTop: 2 },
+  qrWrap: { alignItems: "center", marginTop: 14, gap: 8 },
+  qrCard: { backgroundColor: "#ffffff", padding: 12, borderRadius: 14 },
+  qrUrl: { color: "#9a9aa0", fontSize: 11 },
 });
+
