@@ -344,7 +344,8 @@ async fn demo_publish_creates_scannable_profile_with_welcome() {
                 "title": "Founder",
                 "links": [{ "label": "Site", "url": "https://cardclaws.com" }],
                 "welcomePrompt": "a calm forest at dawn",
-                "welcomeMessage": "Great to meet you"
+                "welcomeMessage": "Great to meet you",
+                "payload": { "kind": "code", "label": "20% off", "value": "CARD20" }
             })),
         )
         .await;
@@ -352,13 +353,17 @@ async fn demo_publish_creates_scannable_profile_with_welcome() {
     let handle = body["handle"].as_str().unwrap();
     assert!(body["profileUrl"].as_str().unwrap().ends_with(handle));
 
-    // The published card resolves publicly with the owner name + welcome.
+    // The published card resolves publicly with the owner name + welcome + payload.
     let (status, profile) = app
         .request("GET", &format!("/v1/cards/handle/{handle}"), None, None)
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(profile["ownerDisplayName"], "Omar Sobh");
     assert_eq!(profile["welcome"]["message"], "Great to meet you");
+    assert_eq!(
+        profile["definition"]["profile"]["payload"]["value"],
+        "CARD20"
+    );
 }
 
 #[tokio::test]

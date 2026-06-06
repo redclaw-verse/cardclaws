@@ -41,6 +41,8 @@ export interface ProfileData {
   bio?: string;
   links?: ProfileLink[];
   contactFormEnabled?: boolean;
+  /** "Payload drop": the thing handed over on scan (a link CTA or a code). */
+  payload?: { kind: "link" | "code"; label: string; value: string };
 }
 
 export interface CardSide {

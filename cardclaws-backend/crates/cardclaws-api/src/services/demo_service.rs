@@ -18,6 +18,15 @@ pub struct DemoLink {
     pub url: String,
 }
 
+/// "Payload drop": the thing handed over on scan — a link CTA or a code.
+#[derive(Deserialize)]
+pub struct DemoPayload {
+    /// "link" | "code".
+    pub kind: String,
+    pub label: String,
+    pub value: String,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DemoPublishRequest {
@@ -30,6 +39,8 @@ pub struct DemoPublishRequest {
     pub welcome_prompt: Option<String>,
     #[serde(default)]
     pub welcome_message: Option<String>,
+    #[serde(default)]
+    pub payload: Option<DemoPayload>,
 }
 
 pub struct Published {
@@ -69,6 +80,16 @@ pub async fn publish(state: &AppState, req: &DemoPublishRequest) -> Result<Publi
         .filter(|l| !l.url.trim().is_empty())
         .map(|l| serde_json::json!({ "label": l.label, "url": l.url }))
         .collect();
+    let mut profile = serde_json::json!({ "links": links });
+    if let Some(p) = &req.payload {
+        if !p.value.trim().is_empty() {
+            profile["payload"] = serde_json::json!({
+                "kind": p.kind,
+                "label": p.label,
+                "value": p.value,
+            });
+        }
+    }
     let definition = serde_json::json!({
         "face": { "layers": [], "background": { "type": "solid", "value": "#101014" } },
         "back": {
@@ -80,7 +101,7 @@ pub async fn publish(state: &AppState, req: &DemoPublishRequest) -> Result<Publi
             }],
             "background": { "type": "solid", "value": "#101014" }
         },
-        "profile": { "links": links }
+        "profile": profile
     });
 
     let card = card_service::create(state, user.id, &card_handle, &definition).await?;

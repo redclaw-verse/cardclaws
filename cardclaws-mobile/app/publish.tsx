@@ -28,6 +28,9 @@ export default function PublishScreen() {
 
   const [welcomePrompt, setWelcomePrompt] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("Great to meet you");
+  const [payloadKind, setPayloadKind] = useState<"none" | "link" | "code">("none");
+  const [payloadLabel, setPayloadLabel] = useState("");
+  const [payloadValue, setPayloadValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(card?.publishedUrl ?? null);
 
@@ -49,6 +52,10 @@ export default function PublishScreen() {
         links: card.links.filter((l) => l.url.trim()).map((l) => ({ label: l.label, url: l.url })),
         welcomePrompt: welcomePrompt.trim() || undefined,
         welcomeMessage: welcomePrompt.trim() ? welcomeMessage : undefined,
+        payload:
+          payloadKind !== "none" && payloadValue.trim()
+            ? { kind: payloadKind, label: payloadLabel.trim(), value: payloadValue.trim() }
+            : undefined,
       });
       // Point the card's QR at the real profile + remember it.
       upsert({ ...card, url: profileUrl, publishedUrl: profileUrl, updatedAt: Date.now() });
@@ -90,6 +97,42 @@ export default function PublishScreen() {
             placeholderTextColor="#6b6b70"
             value={welcomeMessage}
             onChangeText={setWelcomeMessage}
+          />
+        </>
+      )}
+
+      <Text style={styles.label}>Payload drop (optional)</Text>
+      <View style={styles.kindRow}>
+        {(["none", "link", "code"] as const).map((k) => (
+          <Pressable
+            key={k}
+            onPress={() => setPayloadKind(k)}
+            style={[styles.kindChip, payloadKind === k && styles.kindOn]}
+          >
+            <Text style={[styles.kindText, payloadKind === k && styles.kindTextOn]}>
+              {k === "none" ? "None" : k === "link" ? "Link" : "Code"}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {payloadKind !== "none" && (
+        <>
+          <TextInput
+            style={styles.input}
+            editable={!busy}
+            placeholder={payloadKind === "code" ? "Label (e.g. 20% off)" : "Button label (e.g. Get the deck)"}
+            placeholderTextColor="#6b6b70"
+            value={payloadLabel}
+            onChangeText={setPayloadLabel}
+          />
+          <TextInput
+            style={styles.input}
+            editable={!busy}
+            autoCapitalize={payloadKind === "code" ? "characters" : "none"}
+            placeholder={payloadKind === "code" ? "CODE123" : "https://…"}
+            placeholderTextColor="#6b6b70"
+            value={payloadValue}
+            onChangeText={setPayloadValue}
           />
         </>
       )}
@@ -149,6 +192,17 @@ const styles = StyleSheet.create({
   },
   ctaBusy: { opacity: 0.8 },
   ctaText: { color: "#fff", fontWeight: "700", fontSize: 17 },
+  kindRow: { flexDirection: "row", gap: 8 },
+  kindChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#222228",
+    alignItems: "center",
+  },
+  kindOn: { backgroundColor: "#ff3b30" },
+  kindText: { color: "#9a9aa0", fontWeight: "600" },
+  kindTextOn: { color: "#fff" },
   qrWrap: {
     backgroundColor: "#ffffff",
     borderRadius: 16,

@@ -25,6 +25,7 @@ const name = profile.ownerDisplayName;
 const profileData = profile.definition.profile ?? {};
 const bio = profileData.bio?.trim();
 const links = (profileData.links ?? []).filter((l) => l.url.trim().length > 0);
+const payload = profileData.payload && profileData.payload.value?.trim() ? profileData.payload : null;
 const vcard = buildVcard(name, contact);
 const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
   contact.company ? ` at ${contact.company}` : ""
@@ -58,6 +59,21 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
         <section class="block">
           <h2>About</h2>
           <p class="bio">{bio}</p>
+        </section>
+      )}
+
+      {payload && (
+        <section class="block">
+          {payload.kind === "code" ? (
+            <button id="payload-code" class="payload-code" data-code={payload.value}>
+              <span class="payload-label">{payload.label || "Tap to copy"}</span>
+              <span class="payload-value">{payload.value}</span>
+            </button>
+          ) : (
+            <a class="payload-link" href={payload.value} target="_blank" rel="noopener noreferrer">
+              {payload.label || "Open"}
+            </a>
+          )}
         </section>
       )}
 
@@ -138,6 +154,40 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
         margin: 0;
         line-height: 1.5;
         color: #d8d8dc;
+      }
+      .payload-link {
+        display: block;
+        text-align: center;
+        padding: 16px;
+        border-radius: 14px;
+        background: #ff3b30;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 16px;
+      }
+      .payload-code {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #15151a;
+        border: 1px dashed #ff3b30;
+        color: #f5f5f7;
+        font: inherit;
+        cursor: pointer;
+      }
+      .payload-label {
+        color: #9a9aa0;
+        font-size: 14px;
+      }
+      .payload-value {
+        font-weight: 800;
+        font-size: 18px;
+        letter-spacing: 0.04em;
       }
       .links {
         list-style: none;
@@ -292,6 +342,19 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
           }
         } catch {
           cstatus.textContent = "Something went wrong. Try again later.";
+        }
+      });
+    </script>
+    <script>
+      const codeBtn = document.getElementById("payload-code");
+      codeBtn?.addEventListener("click", async () => {
+        const code = codeBtn.getAttribute("data-code") || "";
+        try {
+          await navigator.clipboard.writeText(code);
+          const label = codeBtn.querySelector(".payload-label");
+          if (label) label.textContent = "Copied!";
+        } catch {
+          /* clipboard unavailable */
         }
       });
     </script>
