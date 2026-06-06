@@ -241,10 +241,10 @@ async fn welcome_generates_and_appears_on_public_profile() {
         .await;
     assert_eq!(status, StatusCode::OK, "set welcome failed: {body}");
     assert_eq!(body["welcome"]["kind"], "image");
-    assert!(body["welcome"]["imageDataUrl"]
+    assert!(body["welcome"]["imageUrl"]
         .as_str()
         .unwrap()
-        .starts_with("data:image/png;base64,"));
+        .contains("welcome/"));
 
     // Publish -> the public profile exposes the welcome.
     app.request(
@@ -259,10 +259,10 @@ async fn welcome_generates_and_appears_on_public_profile() {
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(profile["welcome"]["message"], "Great to meet you, I'm Omar");
-    assert!(profile["welcome"]["imageDataUrl"]
+    assert!(profile["welcome"]["imageUrl"]
         .as_str()
         .unwrap()
-        .starts_with("data:image/png"));
+        .starts_with("http"));
 }
 
 #[tokio::test]

@@ -17,8 +17,8 @@ export interface PublicProfile {
 export interface Welcome {
   kind: "image";
   message: string;
-  /** `data:image/...;base64,...` (MVP) or an https URL later. */
-  imageDataUrl: string;
+  /** Public URL of the AI welcome image (served from R2 / MinIO). */
+  imageUrl: string;
 }
 
 // Loose mirror of the Rust CardDefinition — only the parts the profile reads.

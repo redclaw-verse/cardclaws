@@ -26,5 +26,39 @@ services:
       timeout: 3s
       retries: 10
 
+  # S3-compatible object storage for local dev (drop-in for Cloudflare R2).
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # web console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: create the assets bucket and make it public-read so scanned
+  # profiles can fetch welcome images directly.
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done;
+      mc mb -p local/cardclaws-assets;
+      mc anonymous set download local/cardclaws-assets;
+      echo 'minio bucket ready';
+      "
+
 volumes:
   pgdata:
+  miniodata:

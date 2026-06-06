@@ -2,6 +2,7 @@
 //! mutating/owned-read path; non-owned access returns `NotFound` rather than
 //! `Forbidden` so card existence is not leaked.
 
+use base64::Engine;
 use cardclaws_db::models::card::CardRow;
 use cardclaws_db::queries::{cards, users};
 use cardclaws_types::{AppError, Tier};
@@ -43,10 +44,27 @@ pub async fn set_welcome(
     };
     let refined = state.ai.refine_prompt(&brief).await.map_err(ai_to_app)?;
     let img = state.ai.generate_image(&refined).await.map_err(ai_to_app)?;
+
+    // Upload the generated image to object storage (R2 in prod, MinIO in dev)
+    // and store its public URL — keeps the profile payload tiny.
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(img.base64.as_bytes())
+        .map_err(|e| AppError::Internal(format!("decode image: {e}")))?;
+    let ext = if img.mime_type.contains("jpeg") {
+        "jpg"
+    } else {
+        "png"
+    };
+    let key = format!("welcome/{id}.{ext}");
+    state
+        .assets
+        .put_object(&key, bytes, &img.mime_type)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     let welcome = serde_json::json!({
         "kind": "image",
         "message": message.unwrap_or("Great to meet you"),
-        "imageDataUrl": format!("data:{};base64,{}", img.mime_type, img.base64),
+        "imageUrl": state.assets.public_url(&key),
     });
     cards::update_welcome(&state.db, id, &welcome)
         .await

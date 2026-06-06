@@ -82,6 +82,8 @@ pub struct R2Config {
     pub bucket: String,
     pub access_key: String,
     pub secret_key: String,
+    /// Public base URL objects are served from. Empty -> endpoint/bucket.
+    pub public_base: String,
 }
 
 impl Config {
@@ -116,6 +118,7 @@ impl Config {
                 bucket: optional(src, "R2_BUCKET", "cardclaws-assets").await,
                 access_key: optional(src, "R2_ACCESS_KEY", "").await,
                 secret_key: optional(src, "R2_SECRET_KEY", "").await,
+                public_base: optional(src, "R2_PUBLIC_BASE", "").await,
             },
             wallet: WalletConfig {
                 apple_pass_type_id: optional(src, "APPLE_PASS_TYPE_ID", "pass.com.cardclaws.card")
