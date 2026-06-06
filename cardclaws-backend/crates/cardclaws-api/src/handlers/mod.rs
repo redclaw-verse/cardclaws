@@ -3,6 +3,7 @@ pub mod ai;
 pub mod analytics;
 pub mod assets;
 pub mod auth;
+pub mod brainhub;
 pub mod cards;
 pub mod demo;
 pub mod health;

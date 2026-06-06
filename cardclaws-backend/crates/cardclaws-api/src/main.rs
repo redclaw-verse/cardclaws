@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use cardclaws_api::ai::{AiClient, DisabledAiClient, GeminiClient};
 use cardclaws_api::assets::R2Store;
+use cardclaws_api::brainhub::HttpBrainHubClient;
 use cardclaws_api::cache::RedisCache;
 use cardclaws_api::email::ResendEmailSender;
 use cardclaws_api::geo::{GeoResolver, NullGeoResolver};
@@ -59,6 +60,16 @@ async fn main() -> Result<(), BoxError> {
         None => Arc::new(DisabledAiClient),
     };
 
+    // ClawBrainHub: list/pull agent brains. Reads are public; CLAWBRAINHUB_TOKEN
+    // (optional) authorizes the user's private brains. CLAWBRAINHUB_OWNER is the
+    // account whose brains are listed first (defaults to "omar").
+    let brainhub = Arc::new(HttpBrainHubClient::new(
+        std::env::var("CLAWBRAINHUB_OWNER").unwrap_or_else(|_| "omar".into()),
+        std::env::var("CLAWBRAINHUB_TOKEN")
+            .ok()
+            .filter(|t| !t.trim().is_empty()),
+    ));
+
     // Brand glyphs bundled into every pass. Solid-fill placeholders for now;
     // replaced by real CardClaws artwork when design assets land.
     let brand = BrandAssets {
@@ -73,6 +84,7 @@ async fn main() -> Result<(), BoxError> {
         assets: Arc::new(assets),
         geo,
         ai,
+        brainhub,
         jwt: JwtKeys::new(&config.jwt_secret),
         apple: Arc::new(HttpJwkProvider::new()),
         apple_audience,

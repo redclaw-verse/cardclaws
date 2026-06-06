@@ -12,6 +12,7 @@ use cardclaws_wallet::google::jwt_signer::GoogleWalletSigner;
 
 use crate::ai::AiClient;
 use crate::assets::ObjectStore;
+use crate::brainhub::BrainHubClient;
 use crate::cache::Cache;
 use crate::email::EmailSender;
 use crate::geo::GeoResolver;
@@ -26,6 +27,7 @@ pub struct AppState {
     pub assets: Arc<dyn ObjectStore>,
     pub geo: Arc<dyn GeoResolver>,
     pub ai: Arc<dyn AiClient>,
+    pub brainhub: Arc<dyn BrainHubClient>,
     pub jwt: JwtKeys,
     pub apple: Arc<dyn JwkProvider>,
     /// Apple Services ID / bundle id the identity token must be addressed to.

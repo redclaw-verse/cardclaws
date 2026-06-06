@@ -107,6 +107,15 @@ function buildDemoCard(
   };
 }
 
+/** "general-assistant" → "General Assistant". */
+function prettifyBrainName(name: string): string {
+  return name
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export default function CardEditorScreen() {
   const router = useRouter();
   const { cardId, kind: kindParam } = useLocalSearchParams<{ cardId?: string; kind?: string }>();
@@ -172,6 +181,21 @@ export default function CardEditorScreen() {
         setVideoUri(draft.pendingVideoUri);
         setShowing(false);
         draft.setPendingVideoUri(null);
+      }
+      // A brain pulled from ClawBrainHub → prefill the agent card's flip side.
+      if (draft.pendingAgentBrain) {
+        const b = draft.pendingAgentBrain;
+        setCardKind("agent");
+        setName(prettifyBrainName(b.name));
+        setTitle(`v${b.version} · @${b.owner}`);
+        setAgentMeta({
+          tagline: b.tagline,
+          skills: b.skills.map((s) => ({ name: s, level: 4 })),
+          tools: b.tools,
+          capabilities: b.capabilities,
+        });
+        setShowing(false);
+        draft.setPendingAgentBrain(null);
       }
     }, []),
   );

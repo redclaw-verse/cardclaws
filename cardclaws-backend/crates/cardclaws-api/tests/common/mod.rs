@@ -20,6 +20,7 @@ use tower::ServiceExt;
 
 use cardclaws_api::ai::FakeAiClient;
 use cardclaws_api::assets::InMemoryStore;
+use cardclaws_api::brainhub::FakeBrainHubClient;
 use cardclaws_api::cache::InMemoryCache;
 use cardclaws_api::email::CapturingEmailSender;
 use cardclaws_api::geo::{GeoLocation, GeoResolver};
@@ -86,6 +87,7 @@ pub async fn try_setup() -> Option<TestApp> {
         assets: assets.clone(),
         geo: Arc::new(FakeGeo),
         ai: Arc::new(FakeAiClient),
+        brainhub: Arc::new(FakeBrainHubClient),
         jwt: JwtKeys::new("test-jwt-secret"),
         apple: Arc::new(NoopApple),
         apple_audience: "com.cardclaws.test".into(),

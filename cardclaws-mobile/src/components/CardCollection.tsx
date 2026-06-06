@@ -34,7 +34,11 @@ export function CardCollection({
     kind,
   );
   const columns = columnsFor(cards.length);
-  const openNew = () => router.push({ pathname: "/demo", params: { kind } });
+  // Agents start by picking a brain from ClawBrainHub; others go straight to the creator.
+  const openNew = () =>
+    kind === "agent"
+      ? router.push("/pick-brain")
+      : router.push({ pathname: "/demo", params: { kind } });
 
   return (
     <View style={styles.root}>

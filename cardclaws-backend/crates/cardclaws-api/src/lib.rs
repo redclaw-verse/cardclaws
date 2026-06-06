@@ -6,6 +6,7 @@
 
 pub mod ai;
 pub mod assets;
+pub mod brainhub;
 pub mod cache;
 pub mod email;
 pub mod error;
