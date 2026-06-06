@@ -29,6 +29,8 @@ export interface LocalCard {
   videoPath?: string;
   /** Back-of-card links (domain, repos, publications, services…). */
   links: CardLink[];
+  /** Public profile URL once published to the web (cardclaws.com/<handle>). */
+  publishedUrl?: string;
   updatedAt: number;
 }
 

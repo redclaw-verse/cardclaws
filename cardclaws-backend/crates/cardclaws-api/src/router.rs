@@ -5,7 +5,8 @@ use axum::routing::{get, post};
 use axum::Router;
 
 use crate::handlers::{
-    account, ai, analytics, assets, auth, cards, health, profile, share, teams, wallet, webhooks,
+    account, ai, analytics, assets, auth, cards, demo, health, profile, share, teams, wallet,
+    webhooks,
 };
 use crate::middleware::cors;
 use crate::state::AppState;
@@ -68,6 +69,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/cards/:id/welcome", post(cards::set_welcome))
         .route("/cards/:id/connections", get(cards::list_connections))
         .route("/profile/:handle/connect", post(profile::submit_connection))
+        .route("/demo/publish", post(demo::publish))
         .route("/ai/refine", post(ai::refine))
         .route("/ai/image", post(ai::image))
         .route("/ai/video", post(ai::start_video))

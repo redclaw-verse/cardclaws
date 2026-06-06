@@ -332,6 +332,50 @@ async fn we_met_capture_and_owner_list() {
 }
 
 #[tokio::test]
+async fn demo_publish_creates_scannable_profile_with_welcome() {
+    let app = require_app!();
+    let (status, body) = app
+        .request(
+            "POST",
+            "/v1/demo/publish",
+            None,
+            Some(json!({
+                "name": "Omar Sobh",
+                "title": "Founder",
+                "links": [{ "label": "Site", "url": "https://cardclaws.com" }],
+                "welcomePrompt": "a calm forest at dawn",
+                "welcomeMessage": "Great to meet you"
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "publish failed: {body}");
+    let handle = body["handle"].as_str().unwrap();
+    assert!(body["profileUrl"].as_str().unwrap().ends_with(handle));
+
+    // The published card resolves publicly with the owner name + welcome.
+    let (status, profile) = app
+        .request("GET", &format!("/v1/cards/handle/{handle}"), None, None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(profile["ownerDisplayName"], "Omar Sobh");
+    assert_eq!(profile["welcome"]["message"], "Great to meet you");
+}
+
+#[tokio::test]
+async fn demo_publish_requires_a_name() {
+    let app = require_app!();
+    let (status, _) = app
+        .request(
+            "POST",
+            "/v1/demo/publish",
+            None,
+            Some(json!({ "name": "  " })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn connections_list_is_owner_only() {
     let app = require_app!();
     let token = app.register_and_token().await;

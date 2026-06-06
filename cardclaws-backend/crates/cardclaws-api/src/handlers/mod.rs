@@ -4,6 +4,7 @@ pub mod analytics;
 pub mod assets;
 pub mod auth;
 pub mod cards;
+pub mod demo;
 pub mod health;
 pub mod profile;
 pub mod share;

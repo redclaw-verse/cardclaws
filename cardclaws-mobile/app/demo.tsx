@@ -178,20 +178,46 @@ export default function CardEditorScreen() {
     }
   };
 
+  // Persist the current edits to the local gallery (shared by Save + Publish).
+  const persistCard = async () => {
+    const existing = getById(id);
+    const imagePath = imageUri ? await persistImage(imageUri, id) : (existing?.imagePath ?? "");
+    const videoPath = videoUri ? await persistVideo(videoUri, id) : undefined;
+    upsert({
+      id,
+      name,
+      title,
+      url,
+      imagePath,
+      videoPath,
+      links,
+      publishedUrl: existing?.publishedUrl,
+      updatedAt: Date.now(),
+    });
+    if (imageUri) setImageUri(imagePath);
+    if (videoPath) setVideoUri(videoPath);
+  };
+
   const save = async () => {
     if (!imageUri && !videoUri) return;
     setSaving(true);
     try {
-      const imagePath = imageUri ? await persistImage(imageUri, id) : (getById(id)?.imagePath ?? "");
-      const videoPath = videoUri ? await persistVideo(videoUri, id) : undefined;
-      upsert({ id, name, title, url, imagePath, videoPath, links, updatedAt: Date.now() });
-      if (imageUri) setImageUri(imagePath);
-      if (videoPath) setVideoUri(videoPath);
+      await persistCard();
       setOnBack(false);
       setShowing(true);
     } finally {
       setSaving(false);
     }
+  };
+
+  const goPublish = async () => {
+    setSaving(true);
+    try {
+      await persistCard();
+    } finally {
+      setSaving(false);
+    }
+    router.push(`/publish?cardId=${id}`);
   };
 
   const onDelete = async () => {
@@ -292,6 +318,15 @@ export default function CardEditorScreen() {
         {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Save card</Text>}
       </Pressable>
 
+      <Pressable
+        style={[styles.publishBtn, saving && styles.ctaDisabled]}
+        disabled={saving}
+        onPress={goPublish}
+      >
+        <MaterialCommunityIcons name="web" size={20} color="#f5f5f7" />
+        <Text style={styles.photoText}>Publish to web · AI welcome</Text>
+      </Pressable>
+
       {cardId && (
         <Pressable onPress={onDelete}>
           <Text style={styles.deleteText}>Delete card</Text>
@@ -365,6 +400,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   ctaDisabled: { opacity: 0.4 },
+  publishBtn: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#222228",
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   ctaText: { color: "#fff", fontWeight: "700", fontSize: 17 },
   deleteText: { color: "#ff453a", textAlign: "center", paddingVertical: 14, fontWeight: "600" },
   viewerRoot: { flex: 1, backgroundColor: "#0a0a0c" },

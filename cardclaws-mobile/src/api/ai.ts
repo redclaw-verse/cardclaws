@@ -49,3 +49,23 @@ export async function pollVideo(operationId: string): Promise<VideoStatus> {
   );
   return res.data;
 }
+
+export interface PublishPayload {
+  name: string;
+  title?: string;
+  links: { label: string; url: string }[];
+  welcomePrompt?: string;
+  welcomeMessage?: string;
+}
+
+/** Publish a demo card to the web (no auth) → a real, scannable profile URL. */
+export async function publishToWeb(
+  payload: PublishPayload,
+): Promise<{ handle: string; profileUrl: string }> {
+  const res = await api.post<{ handle: string; profileUrl: string }>(
+    "/v1/demo/publish",
+    payload,
+    { timeout: 120000 },
+  );
+  return res.data;
+}
