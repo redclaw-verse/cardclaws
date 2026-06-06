@@ -13,8 +13,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  View,
 } from "react-native";
 import { publishToWeb } from "../src/api/ai";
+import { QRCodeView } from "../src/components/card/QRCodeView";
 import { wizardInputStyle } from "../src/components/genwizard/Wizard";
 import { useLocalCardsStore } from "../src/stores/localCardsStore";
 
@@ -105,7 +107,10 @@ export default function PublishScreen() {
 
       {result && (
         <>
-          <Text style={styles.label}>Your live page</Text>
+          <Text style={styles.label}>Your live page — show this to scan</Text>
+          <View style={styles.qrWrap}>
+            <QRCodeView value={result} size={220} />
+          </View>
           <Text style={styles.url} selectable>
             {result}
           </Text>
@@ -144,6 +149,12 @@ const styles = StyleSheet.create({
   },
   ctaBusy: { opacity: 0.8 },
   ctaText: { color: "#fff", fontWeight: "700", fontSize: 17 },
+  qrWrap: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 14,
+    alignSelf: "center",
+  },
   url: { color: "#4da3ff", fontSize: 16 },
   secondary: {
     backgroundColor: "#222228",
