@@ -26,6 +26,7 @@ const profileData = profile.definition.profile ?? {};
 const bio = profileData.bio?.trim();
 const links = (profileData.links ?? []).filter((l) => l.url.trim().length > 0);
 const payload = profileData.payload && profileData.payload.value?.trim() ? profileData.payload : null;
+const now = profileData.now?.trim();
 const vcard = buildVcard(name, contact);
 const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
   contact.company ? ` at ${contact.company}` : ""
@@ -54,6 +55,12 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
         bgHex={bgHex}
         contact={contact}
       />
+
+      {now && (
+        <section class="block">
+          <p class="now"><span class="now-dot"></span>Now: {now}</p>
+        </section>
+      )}
 
       {bio && (
         <section class="block">
@@ -154,6 +161,30 @@ const og = `${name}${contact.title ? ` — ${contact.title}` : ""}${
         margin: 0;
         line-height: 1.5;
         color: #d8d8dc;
+      }
+      .now {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #f5f5f7;
+        font-weight: 600;
+      }
+      .now-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #30d158;
+        box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.6);
+        animation: pulse 1.8s infinite;
+      }
+      @keyframes pulse {
+        70% {
+          box-shadow: 0 0 0 8px rgba(48, 209, 88, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(48, 209, 88, 0);
+        }
       }
       .payload-link {
         display: block;

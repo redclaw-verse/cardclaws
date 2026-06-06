@@ -345,7 +345,8 @@ async fn demo_publish_creates_scannable_profile_with_welcome() {
                 "links": [{ "label": "Site", "url": "https://cardclaws.com" }],
                 "welcomePrompt": "a calm forest at dawn",
                 "welcomeMessage": "Great to meet you",
-                "payload": { "kind": "code", "label": "20% off", "value": "CARD20" }
+                "payload": { "kind": "code", "label": "20% off", "value": "CARD20" },
+                "now": "Building CardClaws · open to design partners"
             })),
         )
         .await;
@@ -363,6 +364,10 @@ async fn demo_publish_creates_scannable_profile_with_welcome() {
     assert_eq!(
         profile["definition"]["profile"]["payload"]["value"],
         "CARD20"
+    );
+    assert_eq!(
+        profile["definition"]["profile"]["now"],
+        "Building CardClaws · open to design partners"
     );
 }
 

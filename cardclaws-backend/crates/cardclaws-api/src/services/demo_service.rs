@@ -41,6 +41,9 @@ pub struct DemoPublishRequest {
     pub welcome_message: Option<String>,
     #[serde(default)]
     pub payload: Option<DemoPayload>,
+    /// "Now" status — what the person is currently up to.
+    #[serde(default)]
+    pub now: Option<String>,
 }
 
 pub struct Published {
@@ -88,6 +91,11 @@ pub async fn publish(state: &AppState, req: &DemoPublishRequest) -> Result<Publi
                 "label": p.label,
                 "value": p.value,
             });
+        }
+    }
+    if let Some(now) = req.now.as_deref() {
+        if !now.trim().is_empty() {
+            profile["now"] = serde_json::json!(now.trim());
         }
     }
     let definition = serde_json::json!({

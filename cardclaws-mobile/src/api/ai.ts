@@ -57,6 +57,7 @@ export interface PublishPayload {
   welcomePrompt?: string;
   welcomeMessage?: string;
   payload?: { kind: "link" | "code"; label: string; value: string };
+  now?: string;
 }
 
 /** Publish a demo card to the web (no auth) → a real, scannable profile URL. */

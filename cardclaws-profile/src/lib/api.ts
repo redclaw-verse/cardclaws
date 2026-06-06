@@ -43,6 +43,8 @@ export interface ProfileData {
   contactFormEnabled?: boolean;
   /** "Payload drop": the thing handed over on scan (a link CTA or a code). */
   payload?: { kind: "link" | "code"; label: string; value: string };
+  /** "Now" status — what the person is currently up to. */
+  now?: string;
 }
 
 export interface CardSide {

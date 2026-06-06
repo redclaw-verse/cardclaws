@@ -31,6 +31,7 @@ export default function PublishScreen() {
   const [payloadKind, setPayloadKind] = useState<"none" | "link" | "code">("none");
   const [payloadLabel, setPayloadLabel] = useState("");
   const [payloadValue, setPayloadValue] = useState("");
+  const [now, setNow] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(card?.publishedUrl ?? null);
 
@@ -56,6 +57,7 @@ export default function PublishScreen() {
           payloadKind !== "none" && payloadValue.trim()
             ? { kind: payloadKind, label: payloadLabel.trim(), value: payloadValue.trim() }
             : undefined,
+        now: now.trim() || undefined,
       });
       // Point the card's QR at the real profile + remember it.
       upsert({ ...card, url: profileUrl, publishedUrl: profileUrl, updatedAt: Date.now() });
@@ -100,6 +102,16 @@ export default function PublishScreen() {
           />
         </>
       )}
+
+      <Text style={styles.label}>Now — what you’re up to (optional)</Text>
+      <TextInput
+        style={styles.input}
+        editable={!busy}
+        placeholder="e.g. Building CardClaws · open to design partners"
+        placeholderTextColor="#6b6b70"
+        value={now}
+        onChangeText={setNow}
+      />
 
       <Text style={styles.label}>Payload drop (optional)</Text>
       <View style={styles.kindRow}>
