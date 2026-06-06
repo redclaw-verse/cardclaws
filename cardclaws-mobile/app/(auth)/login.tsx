@@ -37,7 +37,7 @@ export default function LoginScreen() {
       } else {
         await login(email, password);
       }
-      router.replace("/(tabs)/cards");
+      router.replace("/");
     } catch {
       setError(mode === "login" ? "Invalid email or password" : "Could not create account");
     } finally {

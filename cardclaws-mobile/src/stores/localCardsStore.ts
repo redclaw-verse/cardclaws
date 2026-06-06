@@ -38,6 +38,7 @@ interface LocalCardsState {
   cards: LocalCard[];
   upsert: (card: LocalCard) => void;
   remove: (id: string) => void;
+  clear: () => void;
   getById: (id: string) => LocalCard | undefined;
 }
 
@@ -52,6 +53,7 @@ export const useLocalCardsStore = create<LocalCardsState>()(
           ),
         })),
       remove: (id) => set((s) => ({ cards: s.cards.filter((c) => c.id !== id) })),
+      clear: () => set({ cards: [] }),
       getById: (id) => get().cards.find((c) => c.id === id),
     }),
     {

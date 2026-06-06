@@ -1,11 +1,11 @@
 // Gallery of cards saved on this device (standalone demo). Clean, chrome-free:
 // just the cards, auto-arranging by count, plus a New-card button.
 
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CardThumb } from "../src/components/CardThumb";
-import { LocalCard, useLocalCardsStore } from "../src/stores/localCardsStore";
+import { CardThumb } from "../../src/components/CardThumb";
+import { LocalCard, useLocalCardsStore } from "../../src/stores/localCardsStore";
 
 /// Shrink tiles as the gallery grows: 2 columns → 4 fit a screen, 3 columns →
 /// ~8 fit, 4 columns beyond that.
@@ -23,8 +23,6 @@ export default function Gallery() {
 
   return (
     <View style={styles.root}>
-      <Stack.Screen options={{ headerShown: false }} />
-
       <FlatList
         data={cards}
         keyExtractor={(c) => c.id}
@@ -56,7 +54,7 @@ export default function Gallery() {
         )}
       />
 
-      <Pressable style={styles.fab} onPress={() => router.push("/demo")}>
+      <Pressable style={[styles.fab, { bottom: 24 }]} onPress={() => router.push("/demo")}>
         <Text style={styles.fabText}>+ New card</Text>
       </Pressable>
     </View>
@@ -65,7 +63,7 @@ export default function Gallery() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0a0a0c" },
-  list: { paddingHorizontal: 16, paddingBottom: 110, flexGrow: 1 },
+  list: { paddingHorizontal: 16, paddingBottom: 96, flexGrow: 1 },
   column: { gap: 12 },
   tile: { flex: 1, marginBottom: 12, borderRadius: 18, overflow: "hidden", backgroundColor: "#15151a" },
   tileImage: { width: "100%", aspectRatio: 2 / 3, overflow: "hidden" },
@@ -79,7 +77,6 @@ const styles = StyleSheet.create({
   emptyHint: { color: "#6b6b70" },
   fab: {
     position: "absolute",
-    bottom: 28,
     alignSelf: "center",
     backgroundColor: "#ff3b30",
     borderRadius: 28,

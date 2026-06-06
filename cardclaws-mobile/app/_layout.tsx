@@ -16,7 +16,10 @@ export default function RootLayout() {
             headerTintColor: "#f5f5f7",
             contentStyle: { backgroundColor: "#0a0a0c" },
           }}
-        />
+        >
+          {/* The tab bar owns its own chrome; no stack header above it. */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
