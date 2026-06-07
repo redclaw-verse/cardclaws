@@ -44,6 +44,8 @@ rand = { workspace = true }
 base64 = { workspace = true }
 validator = { workspace = true }
 async-trait = { workspace = true }
+# Pure-Rust HDF5 reader: parse clawhdf5-format .brain files pulled from ClawBrainHub.
+clawhdf5 = { git = "https://github.com/quantumclaws/clawhdf5", package = "clawhdf5" }
 maxminddb = { version = "0.24", optional = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

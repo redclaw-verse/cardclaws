@@ -126,11 +126,15 @@ impl BrainHubClient for HttpBrainHubClient {
             );
             let (owner, name, version) = (s.owner.clone(), s.name.clone(), s.version.clone());
             set.spawn(async move {
-                let usable = match fetch_json(&http, &token, &url).await {
-                    Ok(json) => {
-                        let b = parse_brain(&owner, &name, &version, &json);
-                        !b.skills.is_empty() || !b.tagline.is_empty() || !b.capabilities.is_empty()
-                    }
+                let usable = match fetch_bytes(&http, &token, &url).await {
+                    Ok(bytes) => match brain_from_blob(&owner, &name, &version, bytes) {
+                        Ok(b) => {
+                            !b.skills.is_empty()
+                                || !b.tagline.is_empty()
+                                || !b.capabilities.is_empty()
+                        }
+                        Err(_) => false,
+                    },
                     Err(_) => false,
                 };
                 (i, usable)
@@ -157,8 +161,8 @@ impl BrainHubClient for HttpBrainHubClient {
         version: &str,
     ) -> Result<AgentBrain, BrainHubError> {
         let url = format!("{}/brains/{}/{}/{}/pull", self.base, owner, name, version);
-        let json = self.get_json(&url).await?;
-        Ok(parse_brain(owner, name, version, &json))
+        let bytes = fetch_bytes(&self.http, &self.token, &url).await?;
+        brain_from_blob(owner, name, version, bytes)
     }
 }
 
@@ -183,6 +187,30 @@ async fn fetch_json(
     resp.json()
         .await
         .map_err(|e| BrainHubError::Parse(e.to_string()))
+}
+
+/// GET a URL as raw bytes (a .brain blob may be JSON or HDF5).
+async fn fetch_bytes(
+    http: &reqwest::Client,
+    token: &Option<String>,
+    url: &str,
+) -> Result<Vec<u8>, BrainHubError> {
+    let mut req = http.get(url);
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| BrainHubError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(BrainHubError::Http(format!("status {}", resp.status())));
+    }
+    Ok(resp
+        .bytes()
+        .await
+        .map_err(|e| BrainHubError::Http(e.to_string()))?
+        .to_vec())
 }
 
 /// Parse a `/brains/{owner}` list response into summaries (latest version each).
@@ -225,29 +253,47 @@ fn parse_summaries(json: &serde_json::Value) -> Vec<BrainSummary> {
         .collect()
 }
 
-/// Normalize a pulled `.brain` JSON into card fields.
-fn parse_brain(owner: &str, name: &str, version: &str, json: &serde_json::Value) -> AgentBrain {
-    let meta_name = json
+/// Normalize a pulled `.brain` blob (JSON or clawhdf5 HDF5) into card fields.
+/// `name` is the registry name (used for the resource URL).
+fn brain_from_blob(
+    owner: &str,
+    name: &str,
+    version: &str,
+    bytes: Vec<u8>,
+) -> Result<AgentBrain, BrainHubError> {
+    match bytes.first() {
+        // JSON .brain ("{ ...").
+        Some(b'{') => {
+            let json: serde_json::Value =
+                serde_json::from_slice(&bytes).map_err(|e| BrainHubError::Parse(e.to_string()))?;
+            Ok(parse_brain_json(owner, name, version, &json))
+        }
+        // HDF5 .brain (magic "\x89HDF\r\n\x1a\n").
+        _ if bytes.starts_with(b"\x89HDF\r\n\x1a\n") => {
+            parse_brain_hdf5(owner, name, version, bytes)
+        }
+        _ => Err(BrainHubError::Parse("unrecognized .brain format".into())),
+    }
+}
+
+/// Normalize a JSON `.brain` into card fields.
+fn parse_brain_json(
+    owner: &str,
+    name: &str,
+    version: &str,
+    json: &serde_json::Value,
+) -> AgentBrain {
+    let str_at = |p: &str| {
+        json.pointer(p)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string()
+    };
+    let display = json
         .pointer("/meta/brain_name")
         .and_then(|v| v.as_str())
         .unwrap_or(name);
-    let agent_md = json
-        .pointer("/identity/agent_md")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let soul_md = json
-        .pointer("/identity/soul_md")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let skills_md = json
-        .pointer("/skills/skills_md")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-
-    let mut skills = md_headings(skills_md);
-    skills.truncate(8);
-
-    let mut tools: Vec<String> = json
+    let tools = json
         .pointer("/skills/tool_defs")
         .and_then(|v| v.as_array())
         .map(|a| {
@@ -256,30 +302,107 @@ fn parse_brain(owner: &str, name: &str, version: &str, json: &serde_json::Value)
                 .collect()
         })
         .unwrap_or_default();
+    let (agent_md, soul_md, skills_md) = (
+        str_at("/identity/agent_md"),
+        str_at("/identity/soul_md"),
+        str_at("/skills/skills_md"),
+    );
+    build_agent_brain(BrainParts {
+        owner,
+        reg_name: name,
+        display_name: display,
+        version,
+        agent_md: &agent_md,
+        soul_md: &soul_md,
+        skills_md: &skills_md,
+        tools,
+    })
+}
+
+/// Normalize a clawhdf5 HDF5 `.brain` into card fields (same datasets as JSON).
+fn parse_brain_hdf5(
+    owner: &str,
+    name: &str,
+    version: &str,
+    bytes: Vec<u8>,
+) -> Result<AgentBrain, BrainHubError> {
+    let file = clawhdf5::File::from_bytes(bytes)
+        .map_err(|e| BrainHubError::Parse(format!("hdf5: {e}")))?;
+    let read = |path: &str| -> String {
+        file.dataset(path)
+            .ok()
+            .and_then(|ds| ds.read_selection(&clawhdf5::Selection::All).ok())
+            .map(|b| String::from_utf8_lossy(&b).into_owned())
+            .unwrap_or_default()
+    };
+    let tools = serde_json::from_str::<Vec<serde_json::Value>>(&read("skills/tool_defs_json"))
+        .ok()
+        .map(|a| {
+            a.iter()
+                .filter_map(|t| t.get("name").and_then(|n| n.as_str()).map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    let (agent_md, soul_md, skills_md) = (
+        read("identity/agent_md"),
+        read("identity/soul_md"),
+        read("skills/skills_md"),
+    );
+    Ok(build_agent_brain(BrainParts {
+        owner,
+        reg_name: name,
+        display_name: name,
+        version,
+        agent_md: &agent_md,
+        soul_md: &soul_md,
+        skills_md: &skills_md,
+        tools,
+    }))
+}
+
+/// Inputs to `build_agent_brain` (grouped to keep the arg count sane).
+struct BrainParts<'a> {
+    owner: &'a str,
+    /// Registry name (used for the shareable URL).
+    reg_name: &'a str,
+    /// Display name shown on the card (meta brain_name, falls back to reg_name).
+    display_name: &'a str,
+    version: &'a str,
+    agent_md: &'a str,
+    soul_md: &'a str,
+    skills_md: &'a str,
+    tools: Vec<String>,
+}
+
+/// Shared normalization from the brain's markdown fields → card fields.
+fn build_agent_brain(p: BrainParts) -> AgentBrain {
+    let mut skills = md_headings(p.skills_md);
+    skills.truncate(8);
+    let mut tools = p.tools;
     tools.truncate(8);
 
-    let mut capabilities = md_bullets(agent_md);
+    let mut capabilities = md_bullets(p.agent_md);
     if capabilities.is_empty() {
-        capabilities = md_headings(agent_md)
+        capabilities = md_headings(p.agent_md)
             .into_iter()
             .filter(|h| h != "Purpose")
             .collect();
     }
     capabilities.truncate(6);
 
-    let tagline = first_paragraph(soul_md)
-        .or_else(|| first_paragraph(agent_md))
+    let tagline = first_paragraph(p.soul_md)
+        .or_else(|| first_paragraph(p.agent_md))
         .unwrap_or_default();
 
     AgentBrain {
-        owner: owner.to_string(),
-        name: meta_name.to_string(),
-        version: version.to_string(),
+        owner: p.owner.to_string(),
+        name: p.display_name.to_string(),
+        version: p.version.to_string(),
         tagline,
         skills,
         tools,
         capabilities,
-        resource_url: format!("{WEB_BASE}/{owner}/{name}"),
+        resource_url: format!("{WEB_BASE}/{}/{}", p.owner, p.reg_name),
     }
 }
 
@@ -384,7 +507,7 @@ mod tests {
             },
             "skills": { "skills_md": "# Skills\n\n## web_search\nSearch the web.\n## code_review\nReview code." }
         });
-        let b = parse_brain("redclawsystems", "general-assistant", "1.0.0", &json);
+        let b = parse_brain_json("redclawsystems", "general-assistant", "1.0.0", &json);
         assert_eq!(b.name, "general-assistant");
         assert_eq!(b.skills, vec!["Web Search", "Code Review"]);
         assert_eq!(b.capabilities, vec!["Writing", "Planning"]);
